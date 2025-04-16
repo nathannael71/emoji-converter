@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memoji & Apple Emoji Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        apple: '#007AFF'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .emoji-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 12px;
+        }
+        .emoji-item {
+            font-size: 36px;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.2s;
+            user-select: none;
+            height: 60px;
+            width: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+        .emoji-item:hover {
+            background-color: #f0f0f0;
+            transform: scale(1.1);
+        }
+        .emoji-preview {
+            font-size: 120px;
+            line-height: 1;
+            text-align: center;
+            min-height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Tab styling */
+        .tab-button {
+            cursor: pointer;
+            padding: 8px 16px;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            border-bottom-color: #5D5CDE;
+            color: #5D5CDE;
+        }
+        /* Category buttons */
+        .category-container {
+            display: flex;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #5D5CDE transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+        .category-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        .category-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .category-container::-webkit-scrollbar-thumb {
+            background-color: #5D5CDE;
+            border-radius: 20px;
+        }
+        .apple-font {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text", "Helvetica Neue", sans-serif;
+        }
+        
+        /* Apple Emoji styling */
+        .apple-emoji img.emoji {
+            height: 1em;
+            width: 1em;
+            margin: 0 .05em 0 .1em;
+            vertical-align: -0.1em;
+        }
+        
+        .emoji-preview img.emoji {
+            height: 120px;
+            width: 120px;
+        }
+        
+        /* Loading animation */
+        .apple-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+        }
+        
+        .apple-loading .dot {
+            background-color: #007AFF;
+            border-radius: 50%;
+            width: 10px;
+            height: 10px;
+            margin: 0 5px;
+            animation: apple-bounce 1.5s infinite ease-in-out;
+        }
+        
+        .apple-loading .dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .apple-loading .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .apple-loading .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes apple-bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .dark-mode {
+                background-color: #181818;
+                color: #e5e5e5;
+            }
+            .dark-mode .bg-gray-100 {
+                background-color: #252525;
+            }
+            .dark-mode .bg-white {
+                background-color: #1e1e1e;
+            }
+            .dark-mode .text-gray-800 {
+                color: #e5e5e5;
+            }
+            .dark-mode .text-gray-600 {
+                color: #b0b0b0;
+            }
+            .dark-mode .emoji-item:hover {
+                background-color: #333333;
+            }
+            .dark-mode .border-gray-200 {
+                border-color: #444444;
+            }
+            .dark-mode .text-blue-700 {
+                color: #7eb6ff;
+            }
+            .dark-mode .bg-blue-50 {
+                background-color: #152e4d;
+            }
+            .dark-mode .border-blue-200 {
+                border-color: #255490;
+            }
+            .dark-mode .shadow-inner {
+                box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+            }
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 640px) {
+            .emoji-grid {
+                grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+                gap: 8px;
+            }
+            .emoji-item {
+                font-size: 30px;
+                height: 50px;
+                width: 50px;
+            }
+            .emoji-preview {
+                font-size: 100px;
+                min-height: 120px;
+            }
+            .emoji-preview img.emoji {
+                height: 100px;
+                width: 100px;
+            }
+        }
+
+        /* Category selector styling */
+        .category-btn {
+            white-space: nowrap;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .category-btn.active {
+            background-color: #5D5CDE;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800 min-h-screen apple-font dark-mode">
+    <div class="max-w-4xl mx-auto p-4">
+        <header class="text-center py-6">
+            <h1 class="text-3xl font-bold mb-2">Memoji & Apple Emoji Converter</h1>
+            <p class="text-lg">Konversi Memoji & Emoji ke gambar PNG HD versi Apple</p>
+            
+            <!-- Tabs -->
+            <div class="mt-6 border-b border-gray-200">
+                <div class="flex space-x-4">
+                    <button id="memoji-tab" class="tab-button active">Memoji Converter</button>
+                    <button id="emoji-tab" class="tab-button">Apple Emoji Converter</button>
+                </div>
+            </div>
+        </header>
+        
+        <main class="space-y-8">
+            <!-- Memoji Section -->
+            <div id="memoji-section">
+                <section id="how-to" class="bg-gray-100 rounded-lg p-6 shadow-md mb-6">
+                    <h2 class="text-xl font-semibold mb-4">Cara Menggunakan</h2>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <span class="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0">1</span>
+                            <div>
+                                <p class="font-medium">Buka keyboard Memoji di iPhone Anda</p>
+                                <p class="text-sm text-gray-600 mt-1">Buka keyboard iOS dan pilih tab Memoji</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0">2</span>
+                            <div>
+                                <p class="font-medium">Salin (copy) Memoji yang ingin Anda konversi</p>
+                                <p class="text-sm text-gray-600 mt-1">Tekan dan tahan Memoji untuk menyalinnya</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <span class="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 flex-shrink-0">3</span>
+                            <div>
+                                <p class="font-medium">Tempel (paste) Memoji di area di bawah ini</p>
+                                <p class="text-sm text-gray-600 mt-1">Klik area tempel dan paste (Ctrl+V atau Command+V)</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <section id="paste-section" class="bg-gray-100 rounded-lg p-6 shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Tempel Memoji Anda di Sini</h2>
+                    <div class="flex flex-col items-center">
+                        <div id="paste-area" class="border-2 border-dashed border-primary rounded-lg p-8 w-full flex items-center justify-center cursor-pointer hover:bg-gray-200 transition duration-300 min-h-[200px]" contenteditable="true">
+                            <div id="placeholder" class="text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-primary mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <p class="font-medium">Klik di sini dan tempel (paste) Memoji Anda</p>
+                                <p class="text-sm text-gray-600 mt-2">Anda juga bisa menyeret (drag) Memoji ke sini</p>
+                            </div>
+                        </div>
+                        
+                        <div id="memoji-preview" class="mt-6 hidden">
+                            <h3 class="text-lg font-medium mb-3">Preview Memoji</h3>
+                            <div class="bg-white p-4 rounded-lg shadow-inner flex items-center justify-center">
+                                <div id="preview-container" class="max-w-[200px] max-h-[200px]">
+                                    <!-- Preview akan muncul di sini -->
+                                </div>
+                            </div>
+                            <button id="convert-btn" class="mt-4 bg-primary hover:bg-primary/80 text-white font-medium py-2 px-6 rounded-md transition duration-300 w-full">
+                                Konversi ke PNG HD
+                            </button>
+                            <button id="clear-btn" class="mt-2 border border-gray-300 hover:bg-gray-200 text-gray-700 font-medium py-2 px-6 rounded-md transition duration-300 w-full">
+                                Bersihkan
+                            </button>
+                        </div>
+                    </div>
+                </section>
+                <section id="result-section" class="bg-gray-100 rounded-lg p-6 shadow-md hidden">
+                    <h2 class="text-xl font-semibold mb-4">PNG Hasil Konversi</h2>
+                    <div class="flex flex-col items-center">
+                        <div id="result-container" class="max-w-full overflow-auto bg-white p-4 rounded-lg shadow-inner">
+                            <img id="result-image" class="max-w-full max-h-[70vh] mx-auto" alt="PNG Hasil Konversi" />
+                        </div>
+                        <div class="mt-6 text-center">
+                            <a id="download-btn" class="block w-full mb-4 bg-primary hover:bg-primary/80 text-white font-medium py-3 px-6 rounded-md transition duration-300 flex items-center justify-center" download="memoji-hd.png">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Unduh PNG HD
+                            </a>
+                            <p class="mb-4 text-sm">Atau anda juga bisa:</p>
+                            <ol class="text-left space-y-2 mb-6 mx-auto max-w-md">
+                                <li class="flex items-start">
+                                    <span class="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">1</span>
+                                    <span>Tekan dan tahan pada gambar di atas</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">2</span>
+                                    <span>Pilih "Simpan gambar" atau "Download image"</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">3</span>
+                                    <span>Gambar PNG HD akan tersimpan di perangkat Anda</span>
+                                </li>
+                            </ol>
+                            <button id="convert-new" class="bg-primary hover:bg-primary/80 text-white font-medium py-2 px-6 rounded-md transition duration-300">
+                                Konversi Memoji Lainnya
+                            </button>
+                        </div>
+                    </div>
+                </section>
+                <section id="loading-section" class="bg-gray-100 rounded-lg p-6 shadow-md hidden">
+                    <div class="flex flex-col items-center">
+                        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-primary"></div>
+                        <p class="mt-4 text-lg font-medium">Mengkonversi Memoji ke PNG HD...</p>
+                        <p class="mt-2 text-sm text-gray-600">Ini akan memakan waktu beberapa saat</p>
+                    </div>
+                </section>
+            </div>
+            
+            <!-- Apple Emoji Section -->
+            <div id="emoji-section" class="hidden">
+                <section class="bg-gray-100 rounded-lg p-6 shadow-md mb-6">
+                    <h2 class="text-xl font-semibold mb-4">Konversi ke Apple Emoji</h2>
+                    <p class="mb-4">Masukkan emoji dari perangkat apapun, dan konversi ke tampilan Apple Emoji dalam format PNG HD</p>
+                    
+                    <!-- Emoji Input -->
+                    <div class="mb-6">
+                        <label for="emoji-input" class="block text-sm font-medium mb-2">Masukkan Emoji:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="emoji-input" class="w-full px-4 py-3 border border-gray-300 rounded text-2xl focus:outline-none focus:ring-2 focus:ring-apple" placeholder="Ketik atau paste emoji dari perangkat apapun">
+                            <button id="convert-emoji-btn" class="bg-apple hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md transition duration-300 flex-shrink-0">
+                                Konversi
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">Ketik/paste emoji dari Android, Windows, atau platform lain untuk dikonversi ke tampilan Apple</p>
+                    </div>
+                    
+                    <!-- Emoji Size Selection -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium mb-2">Ukuran PNG:</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button class="size-option px-4 py-2 border border-gray-300 rounded hover:bg-gray-100" data-size="128">128px</button>
+                            <button class="size-option px-4 py-2 border border-gray-300 rounded hover:bg-gray-100" data-size="256">256px</button>
+                            <button class="size-option px-4 py-2 bg-apple text-white rounded" data-size="512">512px</button>
+                            <button class="size-option px-4 py-2 border border-gray-300 rounded hover:bg-gray-100" data-size="1024">1024px</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview and Download -->
+                    <div id="emoji-preview-container" class="bg-white rounded-lg p-6 mb-6 shadow-inner">
+                        <div class="text-center">
+                            <div class="flex flex-col md:flex-row mb-4">
+                                <div class="w-full md:w-1/2 p-4 md:border-r border-gray-200">
+                                    <p class="text-sm mb-2">Emoji Asli:</p>
+                                    <div id="original-emoji" class="emoji-preview mb-2">👋</div>
+                                    <p class="text-xs text-gray-500">Tampilan pada perangkat Anda</p>
+                                </div>
+                                <div class="w-full md:w-1/2 p-4 apple-emoji">
+                                    <p class="text-sm mb-2">Apple Emoji:</p>
+                                    <div id="apple-emoji-preview" class="emoji-preview mb-2">
+                                        <!-- Apple emoji akan tampil di sini -->
+                                    </div>
+                                    <p class="text-xs text-gray-500">Tampilan Apple</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-4" id="loading-container">
+                                <div class="apple-loading">
+                                    <div class="dot"></div>
+                                    <div class="dot"></div>
+                                    <div class="dot"></div>
+                                </div>
+                                <p class="text-sm text-gray-600">Memuat Apple Emoji...</p>
+                            </div>
+                            
+                            <div class="flex justify-center mb-4">
+                                <a id="emoji-download-btn" class="bg-apple hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-md transition duration-300 inline-flex items-center" download="apple-emoji.png">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    Unduh Apple Emoji <span id="size-display">512</span>px
+                                </a>
+                            </div>
+                            
+                            <!-- Instruksi khusus untuk perangkat mobile -->
+                            <div id="emoji-download-info" class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p class="text-sm text-yellow-800 font-medium mb-2">Panduan Unduh untuk Pengguna Mobile:</p>
+                                <ol class="text-left space-y-2 mb-2 mx-auto text-sm text-yellow-700">
+                                    <li class="flex items-start">
+                                        <span class="bg-yellow-500 text-white rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 text-xs">1</span>
+                                        <span>Tekan tombol "Unduh Apple Emoji" di atas</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="bg-yellow-500 text-white rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 text-xs">2</span>
+                                        <span>Jika tombol tidak berfungsi, tekan dan tahan pada emoji Apple di atas</span>
+                                    </li>
+                                    <li class="flex items-start">
+                                        <span class="bg-yellow-500 text-white rounded-full w-5 h-5 flex items-center justify-center mr-2 flex-shrink-0 text-xs">3</span>
+                                        <span>Pilih "Simpan gambar" atau "Download image" dari menu</span>
+                                    </li>
+                                </ol>
+                            </div>
+                            
+                            <p class="text-xs text-gray-500 mt-4">Emoji terkonversi ke PNG dengan latar belakang transparan</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Emoji Category Navigation -->
+                    <div class="mb-4">
+                        <h3 class="font-medium text-lg mb-3">Kategori Emoji</h3>
+                        <div class="category-container pb-2">
+                            <button class="category-btn active" data-category="smileys">😀 Smileys & Emosi</button>
+                            <button class="category-btn" data-category="people">👋 Orang & Tubuh</button>
+                            <button class="category-btn" data-category="animals">🐱 Hewan & Alam</button>
+                            <button class="category-btn" data-category="food">🍎 Makanan & Minuman</button>
+                            <button class="category-btn" data-category="travel">🚗 Perjalanan & Tempat</button>
+                            <button class="category-btn" data-category="activities">⚽ Aktivitas</button>
+                            <button class="category-btn" data-category="objects">💡 Objek</button>
+                            <button class="category-btn" data-category="symbols">⚠️ Simbol</button>
+                            <button class="category-btn" data-category="flags">🏁 Bendera</button>
+                            <button class="category-btn" data-category="new">🆕 Emoji Terbaru</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Emoji Grid Containers -->
+                    <div id="emoji-containers" class="bg-white rounded-lg p-4 apple-emoji">
+                        <!-- Smileys & Emotion (default visible) -->
+                        <div id="smileys-container" class="emoji-category">
+                            <div class="emoji-grid">
+                                <!-- Smileys -->
+                                <div class="emoji-item" data-emoji="😀">😀</div>
+                                <div class="emoji-item" data-emoji="😃">😃</div>
+                                <div class="emoji-item" data-emoji="😄">😄</div>
+                                <div class="emoji-item" data-emoji="😁">😁</div>
+                                <div class="emoji-item" data-emoji="😆">😆</div>
+                                <div class="emoji-item" data-emoji="😅">😅</div>
+                                <div class="emoji-item" data-emoji="🤣">🤣</div>
+                                <div class="emoji-item" data-emoji="😂">😂</div>
+                                <div class="emoji-item" data-emoji="🙂">🙂</div>
+                                <div class="emoji-item" data-emoji="🙃">🙃</div>
+                                <div class="emoji-item" data-emoji="😉">😉</div>
+                                <div class="emoji-item" data-emoji="😊">😊</div>
+                                <div class="emoji-item" data-emoji="😇">😇</div>
+                                <div class="emoji-item" data-emoji="🥰">🥰</div>
+                                <div class="emoji-item" data-emoji="😍">😍</div>
+                                <div class="emoji-item" data-emoji="🤩">🤩</div>
+                                <div class="emoji-item" data-emoji="😘">😘</div>
+                                <div class="emoji-item" data-emoji="😗">😗</div>
+                                <div class="emoji-item" data-emoji="😚">😚</div>
+                                <div class="emoji-item" data-emoji="😙">😙</div>
+                                <div class="emoji-item" data-emoji="🥲">🥲</div>
+                                <div class="emoji-item" data-emoji="😋">😋</div>
+                                <div class="emoji-item" data-emoji="😛">😛</div>
+                                <div class="emoji-item" data-emoji="😜">😜</div>
+                                <div class="emoji-item" data-emoji="🤪">🤪</div>
+                                <div class="emoji-item" data-emoji="😝">😝</div>
+                                <div class="emoji-item" data-emoji="🤑">🤑</div>
+                                <div class="emoji-item" data-emoji="🤗">🤗</div>
+                                <div class="emoji-item" data-emoji="🤭">🤭</div>
+                                <div class="emoji-item" data-emoji="🤫">🤫</div>
+                                <div class="emoji-item" data-emoji="🤔">🤔</div>
+                                <div class="emoji-item" data-emoji="🤐">🤐</div>
+                                <div class="emoji-item" data-emoji="🤨">🤨</div>
+                                <div class="emoji-item" data-emoji="😐">😐</div>
+                                <div class="emoji-item" data-emoji="😑">😑</div>
+                                <div class="emoji-item" data-emoji="😶">😶</div>
+                                <div class="emoji-item" data-emoji="😶‍🌫️">😶‍🌫️</div>
+                                <div class="emoji-item" data-emoji="😏">😏</div>
+                                <div class="emoji-item" data-emoji="😒">😒</div>
+                                <div class="emoji-item" data-emoji="🙄">🙄</div>
+                                <div class="emoji-item" data-emoji="😬">😬</div>
+                                <div class="emoji-item" data-emoji="😮‍💨">😮‍💨</div>
+                                <div class="emoji-item" data-emoji="🤥">🤥</div>
+                                <div class="emoji-item" data-emoji="😌">😌</div>
+                                <div class="emoji-item" data-emoji="😔">😔</div>
+                                <div class="emoji-item" data-emoji="😪">😪</div>
+                                <div class="emoji-item" data-emoji="🤤">🤤</div>
+                                <div class="emoji-item" data-emoji="😴">😴</div>
+                                <div class="emoji-item" data-emoji="😷">😷</div>
+                                <div class="emoji-item" data-emoji="🤒">🤒</div>
+                                <div class="emoji-item" data-emoji="🤕">🤕</div>
+                                <div class="emoji-item" data-emoji="🤢">🤢</div>
+                                <div class="emoji-item" data-emoji="🤮">🤮</div>
+                                <div class="emoji-item" data-emoji="🤧">🤧</div>
+                                <div class="emoji-item" data-emoji="🥵">🥵</div>
+                                <div class="emoji-item" data-emoji="🥶">🥶</div>
+                                <div class="emoji-item" data-emoji="🥴">🥴</div>
+                                <div class="emoji-item" data-emoji="😵">😵</div>
+                                <div class="emoji-item" data-emoji="😵‍💫">😵‍💫</div>
+                                <div class="emoji-item" data-emoji="🤯">🤯</div>
+                                <div class="emoji-item" data-emoji="🤠">🤠</div>
+                                <div class="emoji-item" data-emoji="🥳">🥳</div>
+                                <div class="emoji-item" data-emoji="🥸">🥸</div>
+                                <div class="emoji-item" data-emoji="😎">😎</div>
+                                <div class="emoji-item" data-emoji="🤓">🤓</div>
+                                <div class="emoji-item" data-emoji="🧐">🧐</div>
+                                <div class="emoji-item" data-emoji="😕">😕</div>
+                                <div class="emoji-item" data-emoji="😟">😟</div>
+                                <div class="emoji-item" data-emoji="🙁">🙁</div>
+                                <div class="emoji-item" data-emoji="☹️">☹️</div>
+                                <div class="emoji-item" data-emoji="😮">😮</div>
+                                <div class="emoji-item" data-emoji="😯">😯</div>
+                                <div class="emoji-item" data-emoji="😲">😲</div>
+                                <div class="emoji-item" data-emoji="😳">😳</div>
+                                <div class="emoji-item" data-emoji="🥺">🥺</div>
+                                <div class="emoji-item" data-emoji="😦">😦</div>
+                                <div class="emoji-item" data-emoji="😧">😧</div>
+                                <div class="emoji-item" data-emoji="😨">😨</div>
+                                <div class="emoji-item" data-emoji="😰">😰</div>
+                                <div class="emoji-item" data-emoji="😥">😥</div>
+                                <div class="emoji-item" data-emoji="😢">😢</div>
+                                <div class="emoji-item" data-emoji="😭">😭</div>
+                                <div class="emoji-item" data-emoji="😱">😱</div>
+                                <div class="emoji-item" data-emoji="😖">😖</div>
+                                <div class="emoji-item" data-emoji="😣">😣</div>
+                                <div class="emoji-item" data-emoji="😞">😞</div>
+                                <div class="emoji-item" data-emoji="😓">😓</div>
+                                <div class="emoji-item" data-emoji="😩">😩</div>
+                                <div class="emoji-item" data-emoji="😫">😫</div>
+                                <div class="emoji-item" data-emoji="🥱">🥱</div>
+                                <div class="emoji-item" data-emoji="😤">😤</div>
+                                <div class="emoji-item" data-emoji="😡">😡</div>
+                                <div class="emoji-item" data-emoji="😠">😠</div>
+                                <div class="emoji-item" data-emoji="🤬">🤬</div>
+                                <div class="emoji-item" data-emoji="😈">😈</div>
+                                <div class="emoji-item" data-emoji="👿">👿</div>
+                                <div class="emoji-item" data-emoji="💀">💀</div>
+                                <div class="emoji-item" data-emoji="☠️">☠️</div>
+                                <div class="emoji-item" data-emoji="💩">💩</div>
+                                <div class="emoji-item" data-emoji="🤡">🤡</div>
+                                <div class="emoji-item" data-emoji="👹">👹</div>
+                                <div class="emoji-item" data-emoji="👺">👺</div>
+                                <div class="emoji-item" data-emoji="👻">👻</div>
+                                <div class="emoji-item" data-emoji="👽">👽</div>
+                                <div class="emoji-item" data-emoji="👾">👾</div>
+                                <div class="emoji-item" data-emoji="🤖">🤖</div>
+                                <div class="emoji-item" data-emoji="😺">😺</div>
+                                <div class="emoji-item" data-emoji="😸">😸</div>
+                                <div class="emoji-item" data-emoji="😹">😹</div>
+                                <div class="emoji-item" data-emoji="😻">😻</div>
+                                <div class="emoji-item" data-emoji="😼">😼</div>
+                                <div class="emoji-item" data-emoji="😽">😽</div>
+                                <div class="emoji-item" data-emoji="🙀">🙀</div>
+                                <div class="emoji-item" data-emoji="😿">😿</div>
+                                <div class="emoji-item" data-emoji="😾">😾</div>
+                                <div class="emoji-item" data-emoji="🫣">🫣</div>
+                                <div class="emoji-item" data-emoji="🫢">🫢</div>
+                                <div class="emoji-item" data-emoji="🫡">🫡</div>
+                                <div class="emoji-item" data-emoji="🫥">🫥</div>
+                                <div class="emoji-item" data-emoji="🫤">🫤</div>
+                                <div class="emoji-item" data-emoji="🥹">🥹</div>
+                                <div class="emoji-item" data-emoji="🫨">🫨</div>
+                                <div class="emoji-item" data-emoji="❤️">❤️</div>
+                                <div class="emoji-item" data-emoji="🧡">🧡</div>
+                                <div class="emoji-item" data-emoji="💛">💛</div>
+                                <div class="emoji-item" data-emoji="💚">💚</div>
+                                <div class="emoji-item" data-emoji="💙">💙</div>
+                                <div class="emoji-item" data-emoji="💜">💜</div>
+                                <div class="emoji-item" data-emoji="🖤">🖤</div>
+                                <div class="emoji-item" data-emoji="🤎">🤎</div>
+                                <div class="emoji-item" data-emoji="🩵">🩵</div>
+                                <div class="emoji-item" data-emoji="🩷">🩷</div>
+                                <div class="emoji-item" data-emoji="🩶">🩶</div>
+                                <div class="emoji-item" data-emoji="❤️‍🔥">❤️‍🔥</div>
+                                <div class="emoji-item" data-emoji="❤️‍🩹">❤️‍🩹</div>
+                                <div class="emoji-item" data-emoji="💘">💘</div>
+                                <div class="emoji-item" data-emoji="💝">💝</div>
+                                <div class="emoji-item" data-emoji="💖">💖</div>
+                                <div class="emoji-item" data-emoji="💗">💗</div>
+                                <div class="emoji-item" data-emoji="💓">💓</div>
+                                <div class="emoji-item" data-emoji="💞">💞</div>
+                                <div class="emoji-item" data-emoji="💕">💕</div>
+                                <div class="emoji-item" data-emoji="💌">💌</div>
+                                <div class="emoji-item" data-emoji="💟">💟</div>
+                                <div class="emoji-item" data-emoji="❣️">❣️</div>
+                                <div class="emoji-item" data-emoji="💔">💔</div>
+                                <div class="emoji-item" data-emoji="💋">💋</div>
+                                <div class="emoji-item" data-emoji="💯">💯</div>
+                                <div class="emoji-item" data-emoji="💢">💢</div>
+                                <div class="emoji-item" data-emoji="💥">💥</div>
+                                <div class="emoji-item" data-emoji="💫">💫</div>
+                                <div class="emoji-item" data-emoji="💦">💦</div>
+                                <div class="emoji-item" data-emoji="💨">💨</div>
+                                <div class="emoji-item" data-emoji="🕳️">🕳️</div>
+                                <div class="emoji-item" data-emoji="💣">💣</div>
+                                <div class="emoji-item" data-emoji="💬">💬</div>
+                                <div class="emoji-item" data-emoji="👁️‍🗨️">👁️‍🗨️</div>
+                                <div class="emoji-item" data-emoji="🗨️">🗨️</div>
+                                <div class="emoji-item" data-emoji="🗯️">🗯️</div>
+                                <div class="emoji-item" data-emoji="💭">💭</div>
+                                <div class="emoji-item" data-emoji="💤">💤</div>
+                            </div>
+                        </div>
+                        
+                        <!-- People & Body -->
+                        <div id="people-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Hands & Body Parts -->
+                                <div class="emoji-item" data-emoji="👋">👋</div>
+                                <div class="emoji-item" data-emoji="🤚">🤚</div>
+                                <div class="emoji-item" data-emoji="🖐️">🖐️</div>
+                                <div class="emoji-item" data-emoji="✋">✋</div>
+                                <div class="emoji-item" data-emoji="🖖">🖖</div>
+                                <div class="emoji-item" data-emoji="👌">👌</div>
+                                <div class="emoji-item" data-emoji="🤌">🤌</div>
+                                <div class="emoji-item" data-emoji="🤏">🤏</div>
+                                <div class="emoji-item" data-emoji="✌️">✌️</div>
+                                <div class="emoji-item" data-emoji="🤞">🤞</div>
+                                <div class="emoji-item" data-emoji="🫰">🫰</div>
+                                <div class="emoji-item" data-emoji="🤟">🤟</div>
+                                <div class="emoji-item" data-emoji="🤘">🤘</div>
+                                <div class="emoji-item" data-emoji="🤙">🤙</div>
+                                <div class="emoji-item" data-emoji="👈">👈</div>
+                                <div class="emoji-item" data-emoji="👉">👉</div>
+                                <div class="emoji-item" data-emoji="👆">👆</div>
+                                <div class="emoji-item" data-emoji="🖕">🖕</div>
+                                <div class="emoji-item" data-emoji="👇">👇</div>
+                                <div class="emoji-item" data-emoji="☝️">☝️</div>
+                                <div class="emoji-item" data-emoji="👍">👍</div>
+                                <div class="emoji-item" data-emoji="👎">👎</div>
+                                <div class="emoji-item" data-emoji="✊">✊</div>
+                                <div class="emoji-item" data-emoji="👊">👊</div>
+                                <div class="emoji-item" data-emoji="🤛">🤛</div>
+                                <div class="emoji-item" data-emoji="🤜">🤜</div>
+                                <div class="emoji-item" data-emoji="👏">👏</div>
+                                <div class="emoji-item" data-emoji="🙌">🙌</div>
+                                <div class="emoji-item" data-emoji="👐">👐</div>
+                                <div class="emoji-item" data-emoji="🤲">🤲</div>
+                                <div class="emoji-item" data-emoji="🤝">🤝</div>
+                                <div class="emoji-item" data-emoji="🙏">🙏</div>
+                                <div class="emoji-item" data-emoji="✍️">✍️</div>
+                                <div class="emoji-item" data-emoji="💅">💅</div>
+                                <div class="emoji-item" data-emoji="🤳">🤳</div>
+                                <div class="emoji-item" data-emoji="💪">💪</div>
+                                <div class="emoji-item" data-emoji="🦾">🦾</div>
+                                <div class="emoji-item" data-emoji="🦿">🦿</div>
+                                <div class="emoji-item" data-emoji="🦵">🦵</div>
+                                <div class="emoji-item" data-emoji="🦶">🦶</div>
+                                <div class="emoji-item" data-emoji="👂">👂</div>
+                                <div class="emoji-item" data-emoji="🦻">🦻</div>
+                                <div class="emoji-item" data-emoji="👃">👃</div>
+                                <div class="emoji-item" data-emoji="🧠">🧠</div>
+                                <div class="emoji-item" data-emoji="🫀">🫀</div>
+                                <div class="emoji-item" data-emoji="🫁">🫁</div>
+                                <div class="emoji-item" data-emoji="🦷">🦷</div>
+                                <div class="emoji-item" data-emoji="🦴">🦴</div>
+                                <div class="emoji-item" data-emoji="👀">👀</div>
+                                <div class="emoji-item" data-emoji="👁️">👁️</div>
+                                <div class="emoji-item" data-emoji="👅">👅</div>
+                                <div class="emoji-item" data-emoji="👄">👄</div>
+                                <div class="emoji-item" data-emoji="🫦">🫦</div>
+                                <div class="emoji-item" data-emoji="🫠">🫠</div>
+                                <div class="emoji-item" data-emoji="👶">👶</div>
+                                <div class="emoji-item" data-emoji="🧒">🧒</div>
+                                <div class="emoji-item" data-emoji="👦">👦</div>
+                                <div class="emoji-item" data-emoji="👧">👧</div>
+                                <div class="emoji-item" data-emoji="🧑">🧑</div>
+                                <div class="emoji-item" data-emoji="👱">👱</div>
+                                <div class="emoji-item" data-emoji="👨">👨</div>
+                                <div class="emoji-item" data-emoji="🧔">🧔</div>
+                                <div class="emoji-item" data-emoji="🧔‍♂️">🧔‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧔‍♀️">🧔‍♀️</div>
+                                <div class="emoji-item" data-emoji="👨‍🦰">👨‍🦰</div>
+                                <div class="emoji-item" data-emoji="👨‍🦱">👨‍🦱</div>
+                                <div class="emoji-item" data-emoji="👨‍🦳">👨‍🦳</div>
+                                <div class="emoji-item" data-emoji="👨‍🦲">👨‍🦲</div>
+                                <div class="emoji-item" data-emoji="👩">👩</div>
+                                <div class="emoji-item" data-emoji="👩‍🦰">👩‍🦰</div>
+                                <div class="emoji-item" data-emoji="🧑‍🦰">🧑‍🦰</div>
+                                <div class="emoji-item" data-emoji="👩‍🦱">👩‍🦱</div>
+                                <div class="emoji-item" data-emoji="🧑‍🦱">🧑‍🦱</div>
+                                <div class="emoji-item" data-emoji="👩‍🦳">👩‍🦳</div>
+                                <div class="emoji-item" data-emoji="🧑‍🦳">🧑‍🦳</div>
+                                <div class="emoji-item" data-emoji="👩‍🦲">👩‍🦲</div>
+                                <div class="emoji-item" data-emoji="🧑‍🦲">🧑‍🦲</div>
+                                <div class="emoji-item" data-emoji="👱‍♀️">👱‍♀️</div>
+                                <div class="emoji-item" data-emoji="👱‍♂️">👱‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧓">🧓</div>
+                                <div class="emoji-item" data-emoji="👴">👴</div>
+                                <div class="emoji-item" data-emoji="👵">👵</div>
+                                <div class="emoji-item" data-emoji="🙍">🙍</div>
+                                <div class="emoji-item" data-emoji="🙍‍♂️">🙍‍♂️</div>
+                                <div class="emoji-item" data-emoji="🙍‍♀️">🙍‍♀️</div>
+                                <div class="emoji-item" data-emoji="🙎">🙎</div>
+                                <div class="emoji-item" data-emoji="🙎‍♂️">🙎‍♂️</div>
+                                <div class="emoji-item" data-emoji="🙎‍♀️">🙎‍♀️</div>
+                                <div class="emoji-item" data-emoji="🙅">🙅</div>
+                                <div class="emoji-item" data-emoji="🙅‍♂️">🙅‍♂️</div>
+                                <div class="emoji-item" data-emoji="🙅‍♀️">🙅‍♀️</div>
+                                <div class="emoji-item" data-emoji="🙆">🙆</div>
+                                <div class="emoji-item" data-emoji="🙆‍♂️">🙆‍♂️</div>
+                                <div class="emoji-item" data-emoji="🙆‍♀️">🙆‍♀️</div>
+                                <div class="emoji-item" data-emoji="💁">💁</div>
+                                <div class="emoji-item" data-emoji="💁‍♂️">💁‍♂️</div>
+                                <div class="emoji-item" data-emoji="💁‍♀️">💁‍♀️</div>
+                                <div class="emoji-item" data-emoji="🙋">🙋</div>
+                                <div class="emoji-item" data-emoji="🙋‍♂️">🙋‍♂️</div>
+                                <div class="emoji-item" data-emoji="🙋‍♀️">🙋‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧏">🧏</div>
+                                <div class="emoji-item" data-emoji="🧏‍♂️">🧏‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧏‍♀️">🧏‍♀️</div>
+                                <div class="emoji-item" data-emoji="🙇">🙇</div>
+                                <div class="emoji-item" data-emoji="🙇‍♂️">🙇‍♂️</div>
+                                <div class="emoji-item" data-emoji="🙇‍♀️">🙇‍♀️</div>
+                                <div class="emoji-item" data-emoji="🤦">🤦</div>
+                                <div class="emoji-item" data-emoji="🤦‍♂️">🤦‍♂️</div>
+                                <div class="emoji-item" data-emoji="🤦‍♀️">🤦‍♀️</div>
+                                <div class="emoji-item" data-emoji="🤷">🤷</div>
+                                <div class="emoji-item" data-emoji="🤷‍♂️">🤷‍♂️</div>
+                                <div class="emoji-item" data-emoji="🤷‍♀️">🤷‍♀️</div>
+                                <div class="emoji-item" data-emoji="👨‍⚕️">👨‍⚕️</div>
+                                <div class="emoji-item" data-emoji="👩‍⚕️">👩‍⚕️</div>
+                                <div class="emoji-item" data-emoji="🧑‍⚕️">🧑‍⚕️</div>
+                                <div class="emoji-item" data-emoji="👨‍🎓">👨‍🎓</div>
+                                <div class="emoji-item" data-emoji="👩‍🎓">👩‍🎓</div>
+                                <div class="emoji-item" data-emoji="🧑‍🎓">🧑‍🎓</div>
+                                <div class="emoji-item" data-emoji="👨‍🏫">👨‍🏫</div>
+                                <div class="emoji-item" data-emoji="👩‍🏫">👩‍🏫</div>
+                                <div class="emoji-item" data-emoji="🧑‍🏫">🧑‍🏫</div>
+                                <div class="emoji-item" data-emoji="👨‍⚖️">👨‍⚖️</div>
+                                <div class="emoji-item" data-emoji="👩‍⚖️">👩‍⚖️</div>
+                                <div class="emoji-item" data-emoji="🧑‍⚖️">🧑‍⚖️</div>
+                                <div class="emoji-item" data-emoji="👨‍🌾">👨‍🌾</div>
+                                <div class="emoji-item" data-emoji="👩‍🌾">👩‍🌾</div>
+                                <div class="emoji-item" data-emoji="🧑‍🌾">🧑‍🌾</div>
+                                <div class="emoji-item" data-emoji="👨‍🍳">👨‍🍳</div>
+                                <div class="emoji-item" data-emoji="👩‍🍳">👩‍🍳</div>
+                                <div class="emoji-item" data-emoji="🧑‍🍳">🧑‍🍳</div>
+                                <div class="emoji-item" data-emoji="👨‍🔧">👨‍🔧</div>
+                                <div class="emoji-item" data-emoji="👩‍🔧">👩‍🔧</div>
+                                <div class="emoji-item" data-emoji="🧑‍🔧">🧑‍🔧</div>
+                                <div class="emoji-item" data-emoji="👨‍🏭">👨‍🏭</div>
+                                <div class="emoji-item" data-emoji="👩‍🏭">👩‍🏭</div>
+                                <div class="emoji-item" data-emoji="🧑‍🏭">🧑‍🏭</div>
+                                <div class="emoji-item" data-emoji="👨‍💼">👨‍💼</div>
+                                <div class="emoji-item" data-emoji="👩‍💼">👩‍💼</div>
+                                <div class="emoji-item" data-emoji="🧑‍💼">🧑‍💼</div>
+                                <div class="emoji-item" data-emoji="👨‍🔬">👨‍🔬</div>
+                                <div class="emoji-item" data-emoji="👩‍🔬">👩‍🔬</div>
+                                <div class="emoji-item" data-emoji="🧑‍🔬">🧑‍🔬</div>
+                                <div class="emoji-item" data-emoji="👨‍💻">👨‍💻</div>
+                                <div class="emoji-item" data-emoji="👩‍💻">👩‍💻</div>
+                                <div class="emoji-item" data-emoji="🧑‍💻">🧑‍💻</div>
+                                <div class="emoji-item" data-emoji="👨‍🎤">👨‍🎤</div>
+                                <div class="emoji-item" data-emoji="👩‍🎤">👩‍🎤</div>
+                                <div class="emoji-item" data-emoji="🧑‍🎤">🧑‍🎤</div>
+                                <div class="emoji-item" data-emoji="👨‍🎨">👨‍🎨</div>
+                                <div class="emoji-item" data-emoji="👩‍🎨">👩‍🎨</div>
+                                <div class="emoji-item" data-emoji="🧑‍🎨">🧑‍🎨</div>
+                                <div class="emoji-item" data-emoji="👨‍✈️">👨‍✈️</div>
+                                <div class="emoji-item" data-emoji="👩‍✈️">👩‍✈️</div>
+                                <div class="emoji-item" data-emoji="🧑‍✈️">🧑‍✈️</div>
+                                <div class="emoji-item" data-emoji="👨‍🚀">👨‍🚀</div>
+                                <div class="emoji-item" data-emoji="👩‍🚀">👩‍🚀</div>
+                                <div class="emoji-item" data-emoji="🧑‍🚀">🧑‍🚀</div>
+                                <div class="emoji-item" data-emoji="👨‍🚒">👨‍🚒</div>
+                                <div class="emoji-item" data-emoji="👩‍🚒">👩‍🚒</div>
+                                <div class="emoji-item" data-emoji="🧑‍🚒">🧑‍🚒</div>
+                                <div class="emoji-item" data-emoji="👮">👮</div>
+                                <div class="emoji-item" data-emoji="👮‍♂️">👮‍♂️</div>
+                                <div class="emoji-item" data-emoji="👮‍♀️">👮‍♀️</div>
+                                <div class="emoji-item" data-emoji="🕵️">🕵️</div>
+                                <div class="emoji-item" data-emoji="🕵️‍♂️">🕵️‍♂️</div>
+                                <div class="emoji-item" data-emoji="🕵️‍♀️">🕵️‍♀️</div>
+                                <div class="emoji-item" data-emoji="💂">💂</div>
+                                <div class="emoji-item" data-emoji="💂‍♂️">💂‍♂️</div>
+                                <div class="emoji-item" data-emoji="💂‍♀️">💂‍♀️</div>
+                                <div class="emoji-item" data-emoji="🥷">🥷</div>
+                                <div class="emoji-item" data-emoji="👷">👷</div>
+                                <div class="emoji-item" data-emoji="👷‍♂️">👷‍♂️</div>
+                                <div class="emoji-item" data-emoji="👷‍♀️">👷‍♀️</div>
+                                <div class="emoji-item" data-emoji="🫅">🫅</div>
+                                <div class="emoji-item" data-emoji="🤴">🤴</div>
+                                <div class="emoji-item" data-emoji="👸">👸</div>
+                                <div class="emoji-item" data-emoji="👳">👳</div>
+                                <div class="emoji-item" data-emoji="👳‍♂️">👳‍♂️</div>
+                                <div class="emoji-item" data-emoji="👳‍♀️">👳‍♀️</div>
+                                <div class="emoji-item" data-emoji="👲">👲</div>
+                                <div class="emoji-item" data-emoji="🧕">🧕</div>
+                                <div class="emoji-item" data-emoji="🤵">🤵</div>
+                                <div class="emoji-item" data-emoji="🤵‍♂️">🤵‍♂️</div>
+                                <div class="emoji-item" data-emoji="🤵‍♀️">🤵‍♀️</div>
+                                <div class="emoji-item" data-emoji="👰">👰</div>
+                                <div class="emoji-item" data-emoji="👰‍♂️">👰‍♂️</div>
+                                <div class="emoji-item" data-emoji="👰‍♀️">👰‍♀️</div>
+                                <div class="emoji-item" data-emoji="🤰">🤰</div>
+                                <div class="emoji-item" data-emoji="🫃">🫃</div>
+                                <div class="emoji-item" data-emoji="🫄">🫄</div>
+                                <div class="emoji-item" data-emoji="🤱">🤱</div>
+                                <div class="emoji-item" data-emoji="👩‍🍼">👩‍🍼</div>
+                                <div class="emoji-item" data-emoji="👨‍🍼">👨‍🍼</div>
+                                <div class="emoji-item" data-emoji="🧑‍🍼">🧑‍🍼</div>
+                                <div class="emoji-item" data-emoji="👼">👼</div>
+                                <div class="emoji-item" data-emoji="🎅">🎅</div>
+                                <div class="emoji-item" data-emoji="🤶">🤶</div>
+                                <div class="emoji-item" data-emoji="🧑‍🎄">🧑‍🎄</div>
+                                <div class="emoji-item" data-emoji="🦸">🦸</div>
+                                <div class="emoji-item" data-emoji="🦸‍♂️">🦸‍♂️</div>
+                                <div class="emoji-item" data-emoji="🦸‍♀️">🦸‍♀️</div>
+                                <div class="emoji-item" data-emoji="🦹">🦹</div>
+                                <div class="emoji-item" data-emoji="🦹‍♂️">🦹‍♂️</div>
+                                <div class="emoji-item" data-emoji="🦹‍♀️">🦹‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧙">🧙</div>
+                                <div class="emoji-item" data-emoji="🧙‍♂️">🧙‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧙‍♀️">🧙‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧚">🧚</div>
+                                <div class="emoji-item" data-emoji="🧚‍♂️">🧚‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧚‍♀️">🧚‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧛">🧛</div>
+                                <div class="emoji-item" data-emoji="🧛‍♂️">🧛‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧛‍♀️">🧛‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧜">🧜</div>
+                                <div class="emoji-item" data-emoji="🧜‍♂️">🧜‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧜‍♀️">🧜‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧝">🧝</div>
+                                <div class="emoji-item" data-emoji="🧝‍♂️">🧝‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧝‍♀️">🧝‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧞">🧞</div>
+                                <div class="emoji-item" data-emoji="🧞‍♂️">🧞‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧞‍♀️">🧞‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧟">🧟</div>
+                                <div class="emoji-item" data-emoji="🧟‍♂️">🧟‍♂️</div>
+                                <div class="emoji-item" data-emoji="🧟‍♀️">🧟‍♀️</div>
+                                <div class="emoji-item" data-emoji="🧌">🧌</div>
+                                <div class="emoji-item" data-emoji="🫅">🫅</div>
+                                <div class="emoji-item" data-emoji="🫶">🫶</div>
+                                <div class="emoji-item" data-emoji="🫵">🫵</div>
+                                <div class="emoji-item" data-emoji="🫸">🫸</div>
+                                <div class="emoji-item" data-emoji="🫷">🫷</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Animals & Nature -->
+                        <div id="animals-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Mammals -->
+                                <div class="emoji-item" data-emoji="🐵">🐵</div>
+                                <div class="emoji-item" data-emoji="🐒">🐒</div>
+                                <div class="emoji-item" data-emoji="🦍">🦍</div>
+                                <div class="emoji-item" data-emoji="🦧">🦧</div>
+                                <div class="emoji-item" data-emoji="🐶">🐶</div>
+                                <div class="emoji-item" data-emoji="🐕">🐕</div>
+                                <div class="emoji-item" data-emoji="🦮">🦮</div>
+                                <div class="emoji-item" data-emoji="🐕‍🦺">🐕‍🦺</div>
+                                <div class="emoji-item" data-emoji="🐩">🐩</div>
+                                <div class="emoji-item" data-emoji="🐺">🐺</div>
+                                <div class="emoji-item" data-emoji="🦊">🦊</div>
+                                <div class="emoji-item" data-emoji="🦝">🦝</div>
+                                <div class="emoji-item" data-emoji="🐱">🐱</div>
+                                <div class="emoji-item" data-emoji="🐈">🐈</div>
+                                <div class="emoji-item" data-emoji="🐈‍⬛">🐈‍⬛</div>
+                                <div class="emoji-item" data-emoji="🦁">🦁</div>
+                                <div class="emoji-item" data-emoji="🐯">🐯</div>
+                                <div class="emoji-item" data-emoji="🐅">🐅</div>
+                                <div class="emoji-item" data-emoji="🐆">🐆</div>
+                                <div class="emoji-item" data-emoji="🐴">🐴</div>
+                                <div class="emoji-item" data-emoji="🫎">🫎</div>
+                                <div class="emoji-item" data-emoji="🐎">🐎</div>
+                                <div class="emoji-item" data-emoji="🦄">🦄</div>
+                                <div class="emoji-item" data-emoji="🦓">🦓</div>
+                                <div class="emoji-item" data-emoji="🦌">🦌</div>
+                                <div class="emoji-item" data-emoji="🦬">🦬</div>
+                                <div class="emoji-item" data-emoji="🐮">🐮</div>
+                                <div class="emoji-item" data-emoji="🐂">🐂</div>
+                                <div class="emoji-item" data-emoji="🐃">🐃</div>
+                                <div class="emoji-item" data-emoji="🐄">🐄</div>
+                                <div class="emoji-item" data-emoji="🐷">🐷</div>
+                                <div class="emoji-item" data-emoji="🐖">🐖</div>
+                                <div class="emoji-item" data-emoji="🐗">🐗</div>
+                                <div class="emoji-item" data-emoji="🐏">🐏</div>
+                                <div class="emoji-item" data-emoji="🐑">🐑</div>
+                                <div class="emoji-item" data-emoji="🐐">🐐</div>
+                                <div class="emoji-item" data-emoji="🐪">🐪</div>
+                                <div class="emoji-item" data-emoji="🐫">🐫</div>
+                                <div class="emoji-item" data-emoji="🦙">🦙</div>
+                                <div class="emoji-item" data-emoji="🦒">🦒</div>
+                                <div class="emoji-item" data-emoji="🐘">🐘</div>
+                                <div class="emoji-item" data-emoji="🦣">🦣</div>
+                                <div class="emoji-item" data-emoji="🦏">🦏</div>
+                                <div class="emoji-item" data-emoji="🦛">🦛</div>
+                                <div class="emoji-item" data-emoji="🐭">🐭</div>
+                                <div class="emoji-item" data-emoji="🐁">🐁</div>
+                                <div class="emoji-item" data-emoji="🐀">🐀</div>
+                                <div class="emoji-item" data-emoji="🐹">🐹</div>
+                                <div class="emoji-item" data-emoji="🐰">🐰</div>
+                                <div class="emoji-item" data-emoji="🐇">🐇</div>
+                                <div class="emoji-item" data-emoji="🐿️">🐿️</div>
+                                <div class="emoji-item" data-emoji="🦫">🦫</div>
+                                <div class="emoji-item" data-emoji="🦔">🦔</div>
+                                <div class="emoji-item" data-emoji="🦇">🦇</div>
+                                <div class="emoji-item" data-emoji="🐻">🐻</div>
+                                <div class="emoji-item" data-emoji="🐻‍❄️">🐻‍❄️</div>
+                                <div class="emoji-item" data-emoji="🐨">🐨</div>
+                                <div class="emoji-item" data-emoji="🐼">🐼</div>
+                                <div class="emoji-item" data-emoji="🦥">🦥</div>
+                                <div class="emoji-item" data-emoji="🦦">🦦</div>
+                                <div class="emoji-item" data-emoji="🦨">🦨</div>
+                                <div class="emoji-item" data-emoji="🦘">🦘</div>
+                                <div class="emoji-item" data-emoji="🦡">🦡</div>
+                                <div class="emoji-item" data-emoji="🐾">🐾</div>
+                                
+                                <!-- Birds -->
+                                <div class="emoji-item" data-emoji="🦃">🦃</div>
+                                <div class="emoji-item" data-emoji="🐔">🐔</div>
+                                <div class="emoji-item" data-emoji="🐓">🐓</div>
+                                <div class="emoji-item" data-emoji="🐣">🐣</div>
+                                <div class="emoji-item" data-emoji="🐤">🐤</div>
+                                <div class="emoji-item" data-emoji="🐥">🐥</div>
+                                <div class="emoji-item" data-emoji="🐦">🐦</div>
+                                <div class="emoji-item" data-emoji="🐧">🐧</div>
+                                <div class="emoji-item" data-emoji="🕊️">🕊️</div>
+                                <div class="emoji-item" data-emoji="🦅">🦅</div>
+                                <div class="emoji-item" data-emoji="🦆">🦆</div>
+                                <div class="emoji-item" data-emoji="🦢">🦢</div>
+                                <div class="emoji-item" data-emoji="🦉">🦉</div>
+                                <div class="emoji-item" data-emoji="🦤">🦤</div>
+                                <div class="emoji-item" data-emoji="🪶">🪶</div>
+                                <div class="emoji-item" data-emoji="🦩">🦩</div>
+                                <div class="emoji-item" data-emoji="🦚">🦚</div>
+                                <div class="emoji-item" data-emoji="🦜">🦜</div>
+                                <div class="emoji-item" data-emoji="🪽">🪽</div>
+                                <div class="emoji-item" data-emoji="🪿">🪿</div>
+                                
+                                <!-- Reptiles & Amphibians -->
+                                <div class="emoji-item" data-emoji="🐊">🐊</div>
+                                <div class="emoji-item" data-emoji="🐢">🐢</div>
+                                <div class="emoji-item" data-emoji="🦎">🦎</div>
+                                <div class="emoji-item" data-emoji="🐍">🐍</div>
+                                <div class="emoji-item" data-emoji="🐲">🐲</div>
+                                <div class="emoji-item" data-emoji="🐉">🐉</div>
+                                <div class="emoji-item" data-emoji="🦕">🦕</div>
+                                <div class="emoji-item" data-emoji="🦖">🦖</div>
+                                <div class="emoji-item" data-emoji="🐸">🐸</div>
+                                <div class="emoji-item" data-emoji="🪸">🪸</div>
+                                
+                                <!-- Marine -->
+                                <div class="emoji-item" data-emoji="🐳">🐳</div>
+                                <div class="emoji-item" data-emoji="🐋">🐋</div>
+                                <div class="emoji-item" data-emoji="🐬">🐬</div>
+                                <div class="emoji-item" data-emoji="🦭">🦭</div>
+                                <div class="emoji-item" data-emoji="🐟">🐟</div>
+                                <div class="emoji-item" data-emoji="🐠">🐠</div>
+                                <div class="emoji-item" data-emoji="🐡">🐡</div>
+                                <div class="emoji-item" data-emoji="🦈">🦈</div>
+                                <div class="emoji-item" data-emoji="🐙">🐙</div>
+                                <div class="emoji-item" data-emoji="🐚">🐚</div>
+                                <div class="emoji-item" data-emoji="🪼">🪼</div>
+                                
+                                <!-- Insects -->
+                                <div class="emoji-item" data-emoji="🐌">🐌</div>
+                                <div class="emoji-item" data-emoji="🦋">🦋</div>
+                                <div class="emoji-item" data-emoji="🐛">🐛</div>
+                                <div class="emoji-item" data-emoji="🐜">🐜</div>
+                                <div class="emoji-item" data-emoji="🐝">🐝</div>
+                                <div class="emoji-item" data-emoji="🪲">🪲</div>
+                                <div class="emoji-item" data-emoji="🐞">🐞</div>
+                                <div class="emoji-item" data-emoji="🦗">🦗</div>
+                                <div class="emoji-item" data-emoji="🪳">🪳</div>
+                                <div class="emoji-item" data-emoji="🕷️">🕷️</div>
+                                <div class="emoji-item" data-emoji="🕸️">🕸️</div>
+                                <div class="emoji-item" data-emoji="🦂">🦂</div>
+                                <div class="emoji-item" data-emoji="🦟">🦟</div>
+                                <div class="emoji-item" data-emoji="🪰">🪰</div>
+                                <div class="emoji-item" data-emoji="🪱">🪱</div>
+                                <div class="emoji-item" data-emoji="🦠">🦠</div>
+                                
+                                <!-- Plants & Flowers -->
+                                <div class="emoji-item" data-emoji="💐">💐</div>
+                                <div class="emoji-item" data-emoji="🌸">🌸</div>
+                                <div class="emoji-item" data-emoji="💮">💮</div>
+                                <div class="emoji-item" data-emoji="🪷">🪷</div>
+                                <div class="emoji-item" data-emoji="🏵️">🏵️</div>
+                                <div class="emoji-item" data-emoji="🌹">🌹</div>
+                                <div class="emoji-item" data-emoji="🥀">🥀</div>
+                                <div class="emoji-item" data-emoji="🌺">🌺</div>
+                                <div class="emoji-item" data-emoji="🌻">🌻</div>
+                                <div class="emoji-item" data-emoji="🌼">🌼</div>
+                                <div class="emoji-item" data-emoji="🌷">🌷</div>
+                                <div class="emoji-item" data-emoji="🪻">🪻</div>
+                                <div class="emoji-item" data-emoji="🌱">🌱</div>
+                                <div class="emoji-item" data-emoji="🪴">🪴</div>
+                                <div class="emoji-item" data-emoji="🌲">🌲</div>
+                                <div class="emoji-item" data-emoji="🌳">🌳</div>
+                                <div class="emoji-item" data-emoji="🌴">🌴</div>
+                                <div class="emoji-item" data-emoji="🌵">🌵</div>
+                                <div class="emoji-item" data-emoji="🌾">🌾</div>
+                                <div class="emoji-item" data-emoji="🌿">🌿</div>
+                                <div class="emoji-item" data-emoji="☘️">☘️</div>
+                                <div class="emoji-item" data-emoji="🍀">🍀</div>
+                                <div class="emoji-item" data-emoji="🍁">🍁</div>
+                                <div class="emoji-item" data-emoji="🍂">🍂</div>
+                                <div class="emoji-item" data-emoji="🍃">🍃</div>
+                                <div class="emoji-item" data-emoji="🪹">🪹</div>
+                                <div class="emoji-item" data-emoji="🪺">🪺</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Food & Drink -->
+                        <div id="food-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Fruits -->
+                                <div class="emoji-item" data-emoji="🍇">🍇</div>
+                                <div class="emoji-item" data-emoji="🍈">🍈</div>
+                                <div class="emoji-item" data-emoji="🍉">🍉</div>
+                                <div class="emoji-item" data-emoji="🍊">🍊</div>
+                                <div class="emoji-item" data-emoji="🍋">🍋</div>
+                                <div class="emoji-item" data-emoji="🍌">🍌</div>
+                                <div class="emoji-item" data-emoji="🍍">🍍</div>
+                                <div class="emoji-item" data-emoji="🥭">🥭</div>
+                                <div class="emoji-item" data-emoji="🍎">🍎</div>
+                                <div class="emoji-item" data-emoji="🍏">🍏</div>
+                                <div class="emoji-item" data-emoji="🍐">🍐</div>
+                                <div class="emoji-item" data-emoji="🍑">🍑</div>
+                                <div class="emoji-item" data-emoji="🍒">🍒</div>
+                                <div class="emoji-item" data-emoji="🍓">🍓</div>
+                                <div class="emoji-item" data-emoji="🫐">🫐</div>
+                                <div class="emoji-item" data-emoji="🥝">🥝</div>
+                                <div class="emoji-item" data-emoji="🍅">🍅</div>
+                                <div class="emoji-item" data-emoji="🫒">🫒</div>
+                                <div class="emoji-item" data-emoji="🥥">🥥</div>
+                                <div class="emoji-item" data-emoji="🥑">🥑</div>
+                                <div class="emoji-item" data-emoji="🫑">🫑</div>
+                                
+                                <!-- Vegetables -->
+                                <div class="emoji-item" data-emoji="🥔">🥔</div>
+                                <div class="emoji-item" data-emoji="🥕">🥕</div>
+                                <div class="emoji-item" data-emoji="🌽">🌽</div>
+                                <div class="emoji-item" data-emoji="🌶️">🌶️</div>
+                                <div class="emoji-item" data-emoji="🫚">🫚</div>
+                                <div class="emoji-item" data-emoji="🫛">🫛</div>
+                                <div class="emoji-item" data-emoji="🥒">🥒</div>
+                                <div class="emoji-item" data-emoji="🥬">🥬</div>
+                                <div class="emoji-item" data-emoji="🥦">🥦</div>
+                                <div class="emoji-item" data-emoji="🧄">🧄</div>
+                                <div class="emoji-item" data-emoji="🧅">🧅</div>
+                                <div class="emoji-item" data-emoji="🍄">🍄</div>
+                                <div class="emoji-item" data-emoji="🥜">🥜</div>
+                                <div class="emoji-item" data-emoji="🫘">🫘</div>
+                                <div class="emoji-item" data-emoji="🌰">🌰</div>
+                                
+                                <!-- Prepared Food -->
+                                <div class="emoji-item" data-emoji="🍞">🍞</div>
+                                <div class="emoji-item" data-emoji="🥐">🥐</div>
+                                <div class="emoji-item" data-emoji="🥖">🥖</div>
+                                <div class="emoji-item" data-emoji="🫓">🫓</div>
+                                <div class="emoji-item" data-emoji="🥨">🥨</div>
+                                <div class="emoji-item" data-emoji="🥯">🥯</div>
+                                <div class="emoji-item" data-emoji="🥞">🥞</div>
+                                <div class="emoji-item" data-emoji="🧇">🧇</div>
+                                <div class="emoji-item" data-emoji="🧀">🧀</div>
+                                <div class="emoji-item" data-emoji="🍖">🍖</div>
+                                <div class="emoji-item" data-emoji="🍗">🍗</div>
+                                <div class="emoji-item" data-emoji="🥩">🥩</div>
+                                <div class="emoji-item" data-emoji="🥓">🥓</div>
+                                <div class="emoji-item" data-emoji="🍔">🍔</div>
+                                <div class="emoji-item" data-emoji="🍟">🍟</div>
+                                <div class="emoji-item" data-emoji="🍕">🍕</div>
+                                <div class="emoji-item" data-emoji="🌭">🌭</div>
+                                <div class="emoji-item" data-emoji="🥪">🥪</div>
+                                <div class="emoji-item" data-emoji="🌮">🌮</div>
+                                <div class="emoji-item" data-emoji="🌯">🌯</div>
+                                <div class="emoji-item" data-emoji="🫔">🫔</div>
+                                <div class="emoji-item" data-emoji="🥙">🥙</div>
+                                <div class="emoji-item" data-emoji="🧆">🧆</div>
+                                <div class="emoji-item" data-emoji="🥚">🥚</div>
+                                <div class="emoji-item" data-emoji="🍳">🍳</div>
+                                <div class="emoji-item" data-emoji="🥘">🥘</div>
+                                <div class="emoji-item" data-emoji="🍲">🍲</div>
+                                <div class="emoji-item" data-emoji="🫕">🫕</div>
+                                <div class="emoji-item" data-emoji="🥣">🥣</div>
+                                <div class="emoji-item" data-emoji="🥗">🥗</div>
+                                <div class="emoji-item" data-emoji="🍿">🍿</div>
+                                <div class="emoji-item" data-emoji="🧈">🧈</div>
+                                <div class="emoji-item" data-emoji="🧂">🧂</div>
+                                <div class="emoji-item" data-emoji="🥫">🥫</div>
+                                
+                                <!-- Asian Food -->
+                                <div class="emoji-item" data-emoji="🍱">🍱</div>
+                                <div class="emoji-item" data-emoji="🍘">🍘</div>
+                                <div class="emoji-item" data-emoji="🍙">🍙</div>
+                                <div class="emoji-item" data-emoji="🍚">🍚</div>
+                                <div class="emoji-item" data-emoji="🍛">🍛</div>
+                                <div class="emoji-item" data-emoji="🍜">🍜</div>
+                                <div class="emoji-item" data-emoji="🍝">🍝</div>
+                                <div class="emoji-item" data-emoji="🍠">🍠</div>
+                                <div class="emoji-item" data-emoji="🍢">🍢</div>
+                                <div class="emoji-item" data-emoji="🍣">🍣</div>
+                                <div class="emoji-item" data-emoji="🍤">🍤</div>
+                                <div class="emoji-item" data-emoji="🍥">🍥</div>
+                                <div class="emoji-item" data-emoji="🥮">🥮</div>
+                                <div class="emoji-item" data-emoji="🍡">🍡</div>
+                                <div class="emoji-item" data-emoji="🥟">🥟</div>
+                                <div class="emoji-item" data-emoji="🥠">🥠</div>
+                                <div class="emoji-item" data-emoji="🥡">🥡</div>
+                                
+                                <!-- Sweets & Desserts -->
+                                <div class="emoji-item" data-emoji="🍦">🍦</div>
+                                <div class="emoji-item" data-emoji="🍧">🍧</div>
+                                <div class="emoji-item" data-emoji="🍨">🍨</div>
+                                <div class="emoji-item" data-emoji="🍩">🍩</div>
+                                <div class="emoji-item" data-emoji="🍪">🍪</div>
+                                <div class="emoji-item" data-emoji="🎂">🎂</div>
+                                <div class="emoji-item" data-emoji="🍰">🍰</div>
+                                <div class="emoji-item" data-emoji="🧁">🧁</div>
+                                <div class="emoji-item" data-emoji="🥧">🥧</div>
+                                <div class="emoji-item" data-emoji="🍫">🍫</div>
+                                <div class="emoji-item" data-emoji="🍬">🍬</div>
+                                <div class="emoji-item" data-emoji="🍭">🍭</div>
+                                <div class="emoji-item" data-emoji="🍮">🍮</div>
+                                <div class="emoji-item" data-emoji="🍯">🍯</div>
+                                
+                                <!-- Drink -->
+                                <div class="emoji-item" data-emoji="🍼">🍼</div>
+                                <div class="emoji-item" data-emoji="🥛">🥛</div>
+                                <div class="emoji-item" data-emoji="☕">☕</div>
+                                <div class="emoji-item" data-emoji="🫖">🫖</div>
+                                <div class="emoji-item" data-emoji="🍵">🍵</div>
+                                <div class="emoji-item" data-emoji="🍶">🍶</div>
+                                <div class="emoji-item" data-emoji="🍾">🍾</div>
+                                <div class="emoji-item" data-emoji="🍷">🍷</div>
+                                <div class="emoji-item" data-emoji="🍸">🍸</div>
+                                <div class="emoji-item" data-emoji="🍹">🍹</div>
+                                <div class="emoji-item" data-emoji="🍺">🍺</div>
+                                <div class="emoji-item" data-emoji="🍻">🍻</div>
+                                <div class="emoji-item" data-emoji="🥂">🥂</div>
+                                <div class="emoji-item" data-emoji="🥃">🥃</div>
+                                <div class="emoji-item" data-emoji="🫗">🫗</div>
+                                <div class="emoji-item" data-emoji="🥤">🥤</div>
+                                <div class="emoji-item" data-emoji="🧋">🧋</div>
+                                <div class="emoji-item" data-emoji="🧃">🧃</div>
+                                <div class="emoji-item" data-emoji="🧉">🧉</div>
+                                <div class="emoji-item" data-emoji="🧊">🧊</div>
+                                <div class="emoji-item" data-emoji="🥢">🥢</div>
+                                <div class="emoji-item" data-emoji="🍽️">🍽️</div>
+                                <div class="emoji-item" data-emoji="🍴">🍴</div>
+                                <div class="emoji-item" data-emoji="🥄">🥄</div>
+                                <div class="emoji-item" data-emoji="🫙">🫙</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Travel & Places -->
+                        <div id="travel-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Places -->
+                                <div class="emoji-item" data-emoji="🏠">🏠</div>
+                                <div class="emoji-item" data-emoji="🏡">🏡</div>
+                                <div class="emoji-item" data-emoji="🏢">🏢</div>
+                                <div class="emoji-item" data-emoji="🏣">🏣</div>
+                                <div class="emoji-item" data-emoji="🏤">🏤</div>
+                                <div class="emoji-item" data-emoji="🏥">🏥</div>
+                                <div class="emoji-item" data-emoji="🏦">🏦</div>
+                                <div class="emoji-item" data-emoji="🏨">🏨</div>
+                                <div class="emoji-item" data-emoji="🏩">🏩</div>
+                                <div class="emoji-item" data-emoji="🏪">🏪</div>
+                                <div class="emoji-item" data-emoji="🏫">🏫</div>
+                                <div class="emoji-item" data-emoji="🏬">🏬</div>
+                                <div class="emoji-item" data-emoji="🏭">🏭</div>
+                                <div class="emoji-item" data-emoji="🏯">🏯</div>
+                                <div class="emoji-item" data-emoji="🏰">🏰</div>
+                                <div class="emoji-item" data-emoji="💒">💒</div>
+                                <div class="emoji-item" data-emoji="🗼">🗼</div>
+                                <div class="emoji-item" data-emoji="🗽">🗽</div>
+                                <div class="emoji-item" data-emoji="⛪">⛪</div>
+                                <div class="emoji-item" data-emoji="🕌">🕌</div>
+                                <div class="emoji-item" data-emoji="🛕">🛕</div>
+                                <div class="emoji-item" data-emoji="🕍">🕍</div>
+                                <div class="emoji-item" data-emoji="⛩️">⛩️</div>
+                                <div class="emoji-item" data-emoji="🕋">🕋</div>
+                                <div class="emoji-item" data-emoji="⛲">⛲</div>
+                                <div class="emoji-item" data-emoji="⛺">⛺</div>
+                                <div class="emoji-item" data-emoji="🌁">🌁</div>
+                                <div class="emoji-item" data-emoji="🌃">🌃</div>
+                                <div class="emoji-item" data-emoji="🌄">🌄</div>
+                                <div class="emoji-item" data-emoji="🌅">🌅</div>
+                                <div class="emoji-item" data-emoji="🌆">🌆</div>
+                                <div class="emoji-item" data-emoji="🌇">🌇</div>
+                                <div class="emoji-item" data-emoji="🌉">🌉</div>
+                                <div class="emoji-item" data-emoji="♨️">♨️</div>
+                                <div class="emoji-item" data-emoji="🎠">🎠</div>
+                                <div class="emoji-item" data-emoji="🎡">🎡</div>
+                                <div class="emoji-item" data-emoji="🎢">🎢</div>
+                                <div class="emoji-item" data-emoji="💈">💈</div>
+                                <div class="emoji-item" data-emoji="🎪">🎪</div>
+                                
+                                <!-- Transport Ground -->
+                                <div class="emoji-item" data-emoji="🚂">🚂</div>
+                                <div class="emoji-item" data-emoji="🚃">🚃</div>
+                                <div class="emoji-item" data-emoji="🚄">🚄</div>
+                                <div class="emoji-item" data-emoji="🚅">🚅</div>
+                                <div class="emoji-item" data-emoji="🚆">🚆</div>
+                                <div class="emoji-item" data-emoji="🚇">🚇</div>
+                                <div class="emoji-item" data-emoji="🚈">🚈</div>
+                                <div class="emoji-item" data-emoji="🚉">🚉</div>
+                                <div class="emoji-item" data-emoji="🚊">🚊</div>
+                                <div class="emoji-item" data-emoji="🚝">🚝</div>
+                                <div class="emoji-item" data-emoji="🚞">🚞</div>
+                                <div class="emoji-item" data-emoji="🚋">🚋</div>
+                                <div class="emoji-item" data-emoji="🚌">🚌</div>
+                                <div class="emoji-item" data-emoji="🚍">🚍</div>
+                                <div class="emoji-item" data-emoji="🚎">🚎</div>
+                                <div class="emoji-item" data-emoji="🚐">🚐</div>
+                                <div class="emoji-item" data-emoji="🚑">🚑</div>
+                                <div class="emoji-item" data-emoji="🚒">🚒</div>
+                                <div class="emoji-item" data-emoji="🚓">🚓</div>
+                                <div class="emoji-item" data-emoji="🚔">🚔</div>
+                                <div class="emoji-item" data-emoji="🚕">🚕</div>
+                                <div class="emoji-item" data-emoji="🚖">🚖</div>
+                                <div class="emoji-item" data-emoji="🚗">🚗</div>
+                                <div class="emoji-item" data-emoji="🚘">🚘</div>
+                                <div class="emoji-item" data-emoji="🚙">🚙</div>
+                                <div class="emoji-item" data-emoji="🛻">🛻</div>
+                                <div class="emoji-item" data-emoji="🚚">🚚</div>
+                                <div class="emoji-item" data-emoji="🚛">🚛</div>
+                                <div class="emoji-item" data-emoji="🚜">🚜</div>
+                                <div class="emoji-item" data-emoji="🏎️">🏎️</div>
+                                <div class="emoji-item" data-emoji="🏍️">🏍️</div>
+                                <div class="emoji-item" data-emoji="🛵">🛵</div>
+                                <div class="emoji-item" data-emoji="🦽">🦽</div>
+                                <div class="emoji-item" data-emoji="🦼">🦼</div>
+                                <div class="emoji-item" data-emoji="🛺">🛺</div>
+                                <div class="emoji-item" data-emoji="🚲">🚲</div>
+                                <div class="emoji-item" data-emoji="🛴">🛴</div>
+                                <div class="emoji-item" data-emoji="🛹">🛹</div>
+                                <div class="emoji-item" data-emoji="🛼">🛼</div>
+                                <div class="emoji-item" data-emoji="🚏">🚏</div>
+                                <div class="emoji-item" data-emoji="🛣️">🛣️</div>
+                                <div class="emoji-item" data-emoji="🛤️">🛤️</div>
+                                <div class="emoji-item" data-emoji="🛢️">🛢️</div>
+                                <div class="emoji-item" data-emoji="⛽">⛽</div>
+                                <div class="emoji-item" data-emoji="🚨">🚨</div>
+                                <div class="emoji-item" data-emoji="🚥">🚥</div>
+                                <div class="emoji-item" data-emoji="🚦">🚦</div>
+                                <div class="emoji-item" data-emoji="🛑">🛑</div>
+                                <div class="emoji-item" data-emoji="🚧">🚧</div>
+                                
+                                <!-- Transport Air/Water -->
+                                <div class="emoji-item" data-emoji="✈️">✈️</div>
+                                <div class="emoji-item" data-emoji="🛫">🛫</div>
+                                <div class="emoji-item" data-emoji="🛬">🛬</div>
+                                <div class="emoji-item" data-emoji="🛩️">🛩️</div>
+                                <div class="emoji-item" data-emoji="🛰️">🛰️</div>
+                                <div class="emoji-item" data-emoji="🚀">🚀</div>
+                                <div class="emoji-item" data-emoji="🛸">🛸</div>
+                                <div class="emoji-item" data-emoji="🚁">🚁</div>
+                                <div class="emoji-item" data-emoji="🛶">🛶</div>
+                                <div class="emoji-item" data-emoji="⛵">⛵</div>
+                                <div class="emoji-item" data-emoji="🛥️">🛥️</div>
+                                <div class="emoji-item" data-emoji="🚢">🚢</div>
+                                
+                                <!-- Sky & Weather -->
+                                <div class="emoji-item" data-emoji="☁️">☁️</div>
+                                <div class="emoji-item" data-emoji="⛅">⛅</div>
+                                <div class="emoji-item" data-emoji="⛈️">⛈️</div>
+                                <div class="emoji-item" data-emoji="🌤️">🌤️</div>
+                                <div class="emoji-item" data-emoji="🌥️">🌥️</div>
+                                <div class="emoji-item" data-emoji="🌦️">🌦️</div>
+                                <div class="emoji-item" data-emoji="🌧️">🌧️</div>
+                                <div class="emoji-item" data-emoji="🌨️">🌨️</div>
+                                <div class="emoji-item" data-emoji="🌩️">🌩️</div>
+                                <div class="emoji-item" data-emoji="🌪️">🌪️</div>
+                                <div class="emoji-item" data-emoji="🌫️">🌫️</div>
+                                <div class="emoji-item" data-emoji="🌬️">🌬️</div>
+                                <div class="emoji-item" data-emoji="🌀">🌀</div>
+                                <div class="emoji-item" data-emoji="🌈">🌈</div>
+                                <div class="emoji-item" data-emoji="🌂">🌂</div>
+                                <div class="emoji-item" data-emoji="☂️">☂️</div>
+                                <div class="emoji-item" data-emoji="☔">☔</div>
+                                <div class="emoji-item" data-emoji="⛱️">⛱️</div>
+                                <div class="emoji-item" data-emoji="⚡">⚡</div>
+                                <div class="emoji-item" data-emoji="❄️">❄️</div>
+                                <div class="emoji-item" data-emoji="☃️">☃️</div>
+                                <div class="emoji-item" data-emoji="⛄">⛄</div>
+                                <div class="emoji-item" data-emoji="☄️">☄️</div>
+                                <div class="emoji-item" data-emoji="🔥">🔥</div>
+                                <div class="emoji-item" data-emoji="💧">💧</div>
+                                <div class="emoji-item" data-emoji="🌊">🌊</div>
+                                
+                                <!-- Time -->
+                                <div class="emoji-item" data-emoji="🕐">🕐</div>
+                                <div class="emoji-item" data-emoji="🕑">🕑</div>
+                                <div class="emoji-item" data-emoji="🕒">🕒</div>
+                                <div class="emoji-item" data-emoji="🕓">🕓</div>
+                                <div class="emoji-item" data-emoji="🕔">🕔</div>
+                                <div class="emoji-item" data-emoji="🕕">🕕</div>
+                                <div class="emoji-item" data-emoji="🕖">🕖</div>
+                                <div class="emoji-item" data-emoji="🕗">🕗</div>
+                                <div class="emoji-item" data-emoji="🕘">🕘</div>
+                                <div class="emoji-item" data-emoji="🕙">🕙</div>
+                                <div class="emoji-item" data-emoji="🕚">🕚</div>
+                                <div class="emoji-item" data-emoji="🕛">🕛</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Activities -->
+                        <div id="activities-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Sports -->
+                                <div class="emoji-item" data-emoji="⚽">⚽</div>
+                                <div class="emoji-item" data-emoji="⚾">⚾</div>
+                                <div class="emoji-item" data-emoji="🥎">🥎</div>
+                                <div class="emoji-item" data-emoji="🏀">🏀</div>
+                                <div class="emoji-item" data-emoji="🏐">🏐</div>
+                                <div class="emoji-item" data-emoji="🏈">🏈</div>
+                                <div class="emoji-item" data-emoji="🏉">🏉</div>
+                                <div class="emoji-item" data-emoji="🎾">🎾</div>
+                                <div class="emoji-item" data-emoji="🥏">🥏</div>
+                                <div class="emoji-item" data-emoji="🎳">🎳</div>
+                                <div class="emoji-item" data-emoji="🏏">🏏</div>
+                                <div class="emoji-item" data-emoji="🏑">🏑</div>
+                                <div class="emoji-item" data-emoji="🏒">🏒</div>
+                                <div class="emoji-item" data-emoji="🥍">🥍</div>
+                                <div class="emoji-item" data-emoji="🏓">🏓</div>
+                                <div class="emoji-item" data-emoji="🏸">🏸</div>
+                                <div class="emoji-item" data-emoji="🥊">🥊</div>
+                                <div class="emoji-item" data-emoji="🥋">🥋</div>
+                                <div class="emoji-item" data-emoji="🥅">🥅</div>
+                                <div class="emoji-item" data-emoji="⛳">⛳</div>
+                                <div class="emoji-item" data-emoji="⛸️">⛸️</div>
+                                <div class="emoji-item" data-emoji="🎣">🎣</div>
+                                <div class="emoji-item" data-emoji="🤿">🤿</div>
+                                <div class="emoji-item" data-emoji="🎽">🎽</div>
+                                <div class="emoji-item" data-emoji="🎿">🎿</div>
+                                <div class="emoji-item" data-emoji="🛷">🛷</div>
+                                <div class="emoji-item" data-emoji="🥌">🥌</div>
+                                <div class="emoji-item" data-emoji="🎯">🎯</div>
+                                
+                                <!-- Games -->
+                                <div class="emoji-item" data-emoji="🪀">🪀</div>
+                                <div class="emoji-item" data-emoji="🪁">🪁</div>
+                                <div class="emoji-item" data-emoji="🎮">🎮</div>
+                                <div class="emoji-item" data-emoji="🕹️">🕹️</div>
+                                <div class="emoji-item" data-emoji="🎰">🎰</div>
+                                <div class="emoji-item" data-emoji="🎲">🎲</div>
+                                <div class="emoji-item" data-emoji="🧩">🧩</div>
+                                <div class="emoji-item" data-emoji="♟️">♟️</div>
+                                <div class="emoji-item" data-emoji="🎭">🎭</div>
+                                <div class="emoji-item" data-emoji="🔮">🔮</div>
+                                <div class="emoji-item" data-emoji="🧿">🧿</div>
+                                <div class="emoji-item" data-emoji="🎨">🎨</div>
+                                <div class="emoji-item" data-emoji="🎬">🎬</div>
+                                <div class="emoji-item" data-emoji="🎤">🎤</div>
+                                <div class="emoji-item" data-emoji="🎧">🎧</div>
+                                <div class="emoji-item" data-emoji="🎼">🎼</div>
+                                <div class="emoji-item" data-emoji="🎹">🎹</div>
+                                <div class="emoji-item" data-emoji="🥁">🥁</div>
+                                <div class="emoji-item" data-emoji="🪘">🪘</div>
+                                <div class="emoji-item" data-emoji="🎷">🎷</div>
+                                <div class="emoji-item" data-emoji="🎺">🎺</div>
+                                <div class="emoji-item" data-emoji="🪗">🪗</div>
+                                <div class="emoji-item" data-emoji="🎸">🎸</div>
+                                <div class="emoji-item" data-emoji="🪕">🪕</div>
+                                <div class="emoji-item" data-emoji="🎻">🎻</div>
+                                <div class="emoji-item" data-emoji="🪈">🪈</div>
+                                <div class="emoji-item" data-emoji="🪇">🪇</div>
+                                
+                                <!-- Events -->
+                                <div class="emoji-item" data-emoji="🎖️">🎖️</div>
+                                <div class="emoji-item" data-emoji="🏆">🏆</div>
+                                <div class="emoji-item" data-emoji="🏅">🏅</div>
+                                <div class="emoji-item" data-emoji="🥇">🥇</div>
+                                <div class="emoji-item" data-emoji="🥈">🥈</div>
+                                <div class="emoji-item" data-emoji="🥉">🥉</div>
+                                <div class="emoji-item" data-emoji="🏅">🏅</div>
+                                <div class="emoji-item" data-emoji="🎗️">🎗️</div>
+                                <div class="emoji-item" data-emoji="🎟️">🎟️</div>
+                                <div class="emoji-item" data-emoji="🎫">🎫</div>
+                                <div class="emoji-item" data-emoji="🎀">🎀</div>
+                                <div class="emoji-item" data-emoji="🎁">🎁</div>
+                                <div class="emoji-item" data-emoji="🎊">🎊</div>
+                                <div class="emoji-item" data-emoji="🎉">🎉</div>
+                                <div class="emoji-item" data-emoji="🪅">🪅</div>
+                                <div class="emoji-item" data-emoji="🪩">🪩</div>
+                                <div class="emoji-item" data-emoji="🪆">🪆</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Objects -->
+                        <div id="objects-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Clothing -->
+                                <div class="emoji-item" data-emoji="👓">👓</div>
+                                <div class="emoji-item" data-emoji="🕶️">🕶️</div>
+                                <div class="emoji-item" data-emoji="🥽">🥽</div>
+                                <div class="emoji-item" data-emoji="🥼">🥼</div>
+                                <div class="emoji-item" data-emoji="🦺">🦺</div>
+                                <div class="emoji-item" data-emoji="👔">👔</div>
+                                <div class="emoji-item" data-emoji="👕">👕</div>
+                                <div class="emoji-item" data-emoji="👖">👖</div>
+                                <div class="emoji-item" data-emoji="🧣">🧣</div>
+                                <div class="emoji-item" data-emoji="🧤">🧤</div>
+                                <div class="emoji-item" data-emoji="🧥">🧥</div>
+                                <div class="emoji-item" data-emoji="🧦">🧦</div>
+                                <div class="emoji-item" data-emoji="👗">👗</div>
+                                <div class="emoji-item" data-emoji="👘">👘</div>
+                                <div class="emoji-item" data-emoji="🥻">🥻</div>
+                                <div class="emoji-item" data-emoji="🩱">🩱</div>
+                                <div class="emoji-item" data-emoji="🩲">🩲</div>
+                                <div class="emoji-item" data-emoji="🩳">🩳</div>
+                                <div class="emoji-item" data-emoji="👙">👙</div>
+                                <div class="emoji-item" data-emoji="👚">👚</div>
+                                <div class="emoji-item" data-emoji="👛">👛</div>
+                                <div class="emoji-item" data-emoji="👜">👜</div>
+                                <div class="emoji-item" data-emoji="👝">👝</div>
+                                <div class="emoji-item" data-emoji="🛍️">🛍️</div>
+                                <div class="emoji-item" data-emoji="🎒">🎒</div>
+                                <div class="emoji-item" data-emoji="🩴">🩴</div>
+                                <div class="emoji-item" data-emoji="👞">👞</div>
+                                <div class="emoji-item" data-emoji="👟">👟</div>
+                                <div class="emoji-item" data-emoji="🥾">🥾</div>
+                                <div class="emoji-item" data-emoji="🥿">🥿</div>
+                                <div class="emoji-item" data-emoji="👠">👠</div>
+                                <div class="emoji-item" data-emoji="👡">👡</div>
+                                <div class="emoji-item" data-emoji="🩰">🩰</div>
+                                <div class="emoji-item" data-emoji="👢">👢</div>
+                                <div class="emoji-item" data-emoji="👑">👑</div>
+                                <div class="emoji-item" data-emoji="👒">👒</div>
+                                <div class="emoji-item" data-emoji="🎩">🎩</div>
+                                <div class="emoji-item" data-emoji="🎓">🎓</div>
+                                <div class="emoji-item" data-emoji="🧢">🧢</div>
+                                <div class="emoji-item" data-emoji="🪖">🪖</div>
+                                <div class="emoji-item" data-emoji="⛑️">⛑️</div>
+                                <div class="emoji-item" data-emoji="📿">📿</div>
+                                <div class="emoji-item" data-emoji="💄">💄</div>
+                                <div class="emoji-item" data-emoji="💍">💍</div>
+                                <div class="emoji-item" data-emoji="💎">💎</div>
+                                
+                                <!-- Sound -->
+                                <div class="emoji-item" data-emoji="🔇">🔇</div>
+                                <div class="emoji-item" data-emoji="🔈">🔈</div>
+                                <div class="emoji-item" data-emoji="🔉">🔉</div>
+                                <div class="emoji-item" data-emoji="🔊">🔊</div>
+                                <div class="emoji-item" data-emoji="📢">📢</div>
+                                <div class="emoji-item" data-emoji="📣">📣</div>
+                                <div class="emoji-item" data-emoji="📯">📯</div>
+                                <div class="emoji-item" data-emoji="🔔">🔔</div>
+                                <div class="emoji-item" data-emoji="🔕">🔕</div>
+                                
+                                <!-- Computer -->
+                                <div class="emoji-item" data-emoji="💻">💻</div>
+                                <div class="emoji-item" data-emoji="🖥️">🖥️</div>
+                                <div class="emoji-item" data-emoji="🖨️">🖨️</div>
+                                <div class="emoji-item" data-emoji="⌨️">⌨️</div>
+                                <div class="emoji-item" data-emoji="🖱️">🖱️</div>
+                                <div class="emoji-item" data-emoji="🖲️">🖲️</div>
+                                <div class="emoji-item" data-emoji="💽">💽</div>
+                                <div class="emoji-item" data-emoji="💾">💾</div>
+                                <div class="emoji-item" data-emoji="💿">💿</div>
+                                <div class="emoji-item" data-emoji="📀">📀</div>
+                                <div class="emoji-item" data-emoji="🧮">🧮</div>
+                                
+                                <!-- Phones & TV -->
+                                <div class="emoji-item" data-emoji="🎥">🎥</div>
+                                <div class="emoji-item" data-emoji="🎞️">🎞️</div>
+                                <div class="emoji-item" data-emoji="📽️">📽️</div>
+                                <div class="emoji-item" data-emoji="🎬">🎬</div>
+                                <div class="emoji-item" data-emoji="📺">📺</div>
+                                <div class="emoji-item" data-emoji="📷">📷</div>
+                                <div class="emoji-item" data-emoji="📸">📸</div>
+                                <div class="emoji-item" data-emoji="📹">📹</div>
+                                <div class="emoji-item" data-emoji="📼">📼</div>
+                                <div class="emoji-item" data-emoji="🔍">🔍</div>
+                                <div class="emoji-item" data-emoji="🔎">🔎</div>
+                                <div class="emoji-item" data-emoji="🕯️">🕯️</div>
+                                <div class="emoji-item" data-emoji="💡">💡</div>
+                                <div class="emoji-item" data-emoji="🔦">🔦</div>
+                                <div class="emoji-item" data-emoji="🏮">🏮</div>
+                                <div class="emoji-item" data-emoji="🪔">🪔</div>
+                                <div class="emoji-item" data-emoji="📔">📔</div>
+                                <div class="emoji-item" data-emoji="📕">📕</div>
+                                <div class="emoji-item" data-emoji="📖">📖</div>
+                                <div class="emoji-item" data-emoji="📗">📗</div>
+                                <div class="emoji-item" data-emoji="📘">📘</div>
+                                <div class="emoji-item" data-emoji="📙">📙</div>
+                                <div class="emoji-item" data-emoji="📚">📚</div>
+                                <div class="emoji-item" data-emoji="📓">📓</div>
+                                <div class="emoji-item" data-emoji="📒">📒</div>
+                                <div class="emoji-item" data-emoji="📃">📃</div>
+                                <div class="emoji-item" data-emoji="📜">📜</div>
+                                <div class="emoji-item" data-emoji="📄">📄</div>
+                                <div class="emoji-item" data-emoji="📰">📰</div>
+                                <div class="emoji-item" data-emoji="🗞️">🗞️</div>
+                                <div class="emoji-item" data-emoji="📑">📑</div>
+                                <div class="emoji-item" data-emoji="🔖">🔖</div>
+                                <div class="emoji-item" data-emoji="🏷️">🏷️</div>
+                                <div class="emoji-item" data-emoji="💰">💰</div>
+                                <div class="emoji-item" data-emoji="🪙">🪙</div>
+                                <div class="emoji-item" data-emoji="💴">💴</div>
+                                <div class="emoji-item" data-emoji="💵">💵</div>
+                                <div class="emoji-item" data-emoji="💶">💶</div>
+                                <div class="emoji-item" data-emoji="💷">💷</div>
+                                <div class="emoji-item" data-emoji="💸">💸</div>
+                                <div class="emoji-item" data-emoji="💳">💳</div>
+                                <div class="emoji-item" data-emoji="🧾">🧾</div>
+                                <div class="emoji-item" data-emoji="💹">💹</div>
+                                <div class="emoji-item" data-emoji="✉️">✉️</div>
+                                <div class="emoji-item" data-emoji="📧">📧</div>
+                                <div class="emoji-item" data-emoji="📨">📨</div>
+                                <div class="emoji-item" data-emoji="📩">📩</div>
+                                <div class="emoji-item" data-emoji="📤">📤</div>
+                                <div class="emoji-item" data-emoji="📥">📥</div>
+                                <div class="emoji-item" data-emoji="📦">📦</div>
+                                <div class="emoji-item" data-emoji="📫">📫</div>
+                                <div class="emoji-item" data-emoji="📪">📪</div>
+                                <div class="emoji-item" data-emoji="📬">📬</div>
+                                <div class="emoji-item" data-emoji="📭">📭</div>
+                                <div class="emoji-item" data-emoji="📌">📌</div>
+                                <div class="emoji-item" data-emoji="📍">📍</div>
+                                <div class="emoji-item" data-emoji="📎">📎</div>
+                                <div class="emoji-item" data-emoji="🖇️">🖇️</div>
+                                <div class="emoji-item" data-emoji="📏">📏</div>
+                                <div class="emoji-item" data-emoji="📐">📐</div>
+                                <div class="emoji-item" data-emoji="✂️">✂️</div>
+                                <div class="emoji-item" data-emoji="🗃️">🗃️</div>
+                                <div class="emoji-item" data-emoji="🗄️">🗄️</div>
+                                <div class="emoji-item" data-emoji="🗑️">🗑️</div>
+                                <div class="emoji-item" data-emoji="🔒">🔒</div>
+                                <div class="emoji-item" data-emoji="🔓">🔓</div>
+                                <div class="emoji-item" data-emoji="🔏">🔏</div>
+                                <div class="emoji-item" data-emoji="🔐">🔐</div>
+                                <div class="emoji-item" data-emoji="🔑">🔑</div>
+                                <div class="emoji-item" data-emoji="🗝️">🗝️</div>
+                                <div class="emoji-item" data-emoji="🔨">🔨</div>
+                                <div class="emoji-item" data-emoji="🪓">🪓</div>
+                                <div class="emoji-item" data-emoji="⛏️">⛏️</div>
+                                <div class="emoji-item" data-emoji="⚒️">⚒️</div>
+                                <div class="emoji-item" data-emoji="🛠️">🛠️</div>
+                                <div class="emoji-item" data-emoji="🗡️">🗡️</div>
+                                <div class="emoji-item" data-emoji="⚔️">⚔️</div>
+                                <div class="emoji-item" data-emoji="🔫">🔫</div>
+                                <div class="emoji-item" data-emoji="🪃">🪃</div>
+                                <div class="emoji-item" data-emoji="🏹">🏹</div>
+                                <div class="emoji-item" data-emoji="🛡️">🛡️</div>
+                                <div class="emoji-item" data-emoji="🪚">🪚</div>
+                                <div class="emoji-item" data-emoji="🔧">🔧</div>
+                                <div class="emoji-item" data-emoji="🪛">🪛</div>
+                                <div class="emoji-item" data-emoji="🔩">🔩</div>
+                                <div class="emoji-item" data-emoji="⚙️">⚙️</div>
+                                <div class="emoji-item" data-emoji="🗜️">🗜️</div>
+                                <div class="emoji-item" data-emoji="⚖️">⚖️</div>
+                                <div class="emoji-item" data-emoji="🦯">🦯</div>
+                                <div class="emoji-item" data-emoji="🔗">🔗</div>
+                                <div class="emoji-item" data-emoji="⛓️">⛓️</div>
+                                <div class="emoji-item" data-emoji="🪝">🪝</div>
+                                <div class="emoji-item" data-emoji="🧰">🧰</div>
+                                <div class="emoji-item" data-emoji="🧲">🧲</div>
+                                <div class="emoji-item" data-emoji="🪜">🪜</div>
+                                <div class="emoji-item" data-emoji="⚗️">⚗️</div>
+                                <div class="emoji-item" data-emoji="🧪">🧪</div>
+                                <div class="emoji-item" data-emoji="🧫">🧫</div>
+                                <div class="emoji-item" data-emoji="🧬">🧬</div>
+                                <div class="emoji-item" data-emoji="🔬">🔬</div>
+                                <div class="emoji-item" data-emoji="🔭">🔭</div>
+                                <div class="emoji-item" data-emoji="📡">📡</div>
+                                <div class="emoji-item" data-emoji="💉">💉</div>
+                                <div class="emoji-item" data-emoji="🩸">🩸</div>
+                                <div class="emoji-item" data-emoji="💊">💊</div>
+                                <div class="emoji-item" data-emoji="🩹">🩹</div>
+                                <div class="emoji-item" data-emoji="🩺">🩺</div>
+                                <div class="emoji-item" data-emoji="🚪">🚪</div>
+                                <div class="emoji-item" data-emoji="🛗">🛗</div>
+                                <div class="emoji-item" data-emoji="🪞">🪞</div>
+                                <div class="emoji-item" data-emoji="🪟">🪟</div>
+                                <div class="emoji-item" data-emoji="🛏️">🛏️</div>
+                                <div class="emoji-item" data-emoji="🛋️">🛋️</div>
+                                <div class="emoji-item" data-emoji="🪑">🪑</div>
+                                <div class="emoji-item" data-emoji="🚽">🚽</div>
+                                <div class="emoji-item" data-emoji="🪠">🪠</div>
+                                <div class="emoji-item" data-emoji="🚿">🚿</div>
+                                <div class="emoji-item" data-emoji="🛁">🛁</div>
+                                <div class="emoji-item" data-emoji="🪤">🪤</div>
+                                <div class="emoji-item" data-emoji="🪒">🪒</div>
+                                <div class="emoji-item" data-emoji="🧴">🧴</div>
+                                <div class="emoji-item" data-emoji="🧷">🧷</div>
+                                <div class="emoji-item" data-emoji="🧹">🧹</div>
+                                <div class="emoji-item" data-emoji="🧺">🧺</div>
+                                <div class="emoji-item" data-emoji="🧻">🧻</div>
+                                <div class="emoji-item" data-emoji="🪣">🪣</div>
+                                <div class="emoji-item" data-emoji="🧼">🧼</div>
+                                <div class="emoji-item" data-emoji="🫧">🫧</div>
+                                <div class="emoji-item" data-emoji="🪥">🪥</div>
+                                <div class="emoji-item" data-emoji="🧽">🧽</div>
+                                <div class="emoji-item" data-emoji="🧯">🧯</div>
+                                <div class="emoji-item" data-emoji="🛒">🛒</div>
+                                <div class="emoji-item" data-emoji="🛜">🛜</div>
+                                <div class="emoji-item" data-emoji="🧯">🧯</div>
+                                <div class="emoji-item" data-emoji="🧿">🧿</div>
+                                <div class="emoji-item" data-emoji="🪭">🪭</div>
+                                <div class="emoji-item" data-emoji="🪮">🪮</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Symbols -->
+                        <div id="symbols-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <!-- Symbols & Signs -->
+                                <div class="emoji-item" data-emoji="⚠️">⚠️</div>
+                                <div class="emoji-item" data-emoji="🚸">🚸</div>
+                                <div class="emoji-item" data-emoji="⛔">⛔</div>
+                                <div class="emoji-item" data-emoji="🚫">🚫</div>
+                                <div class="emoji-item" data-emoji="🚳">🚳</div>
+                                <div class="emoji-item" data-emoji="🚭">🚭</div>
+                                <div class="emoji-item" data-emoji="🚯">🚯</div>
+                                <div class="emoji-item" data-emoji="🚱">🚱</div>
+                                <div class="emoji-item" data-emoji="🚷">🚷</div>
+                                <div class="emoji-item" data-emoji="📵">📵</div>
+                                <div class="emoji-item" data-emoji="🔞">🔞</div>
+                                <div class="emoji-item" data-emoji="☢️">☢️</div>
+                                <div class="emoji-item" data-emoji="☣️">☣️</div>
+                                <div class="emoji-item" data-emoji="⬆️">⬆️</div>
+                                <div class="emoji-item" data-emoji="↗️">↗️</div>
+                                <div class="emoji-item" data-emoji="➡️">➡️</div>
+                                <div class="emoji-item" data-emoji="↘️">↘️</div>
+                                <div class="emoji-item" data-emoji="⬇️">⬇️</div>
+                                <div class="emoji-item" data-emoji="↙️">↙️</div>
+                                <div class="emoji-item" data-emoji="⬅️">⬅️</div>
+                                <div class="emoji-item" data-emoji="↖️">↖️</div>
+                                <div class="emoji-item" data-emoji="↕️">↕️</div>
+                                <div class="emoji-item" data-emoji="↔️">↔️</div>
+                                <div class="emoji-item" data-emoji="↩️">↩️</div>
+                                <div class="emoji-item" data-emoji="↪️">↪️</div>
+                                <div class="emoji-item" data-emoji="⤴️">⤴️</div>
+                                <div class="emoji-item" data-emoji="⤵️">⤵️</div>
+                                <div class="emoji-item" data-emoji="🔃">🔃</div>
+                                <div class="emoji-item" data-emoji="🔄">🔄</div>
+                                <div class="emoji-item" data-emoji="🔙">🔙</div>
+                                <div class="emoji-item" data-emoji="🔚">🔚</div>
+                                <div class="emoji-item" data-emoji="🔛">🔛</div>
+                                <div class="emoji-item" data-emoji="🔜">🔜</div>
+                                <div class="emoji-item" data-emoji="🔝">🔝</div>
+                                <div class="emoji-item" data-emoji="🛐">🛐</div>
+                                <div class="emoji-item" data-emoji="⚛️">⚛️</div>
+                                <div class="emoji-item" data-emoji="🕉️">🕉️</div>
+                                <div class="emoji-item" data-emoji="✡️">✡️</div>
+                                <div class="emoji-item" data-emoji="☸️">☸️</div>
+                                <div class="emoji-item" data-emoji="☯️">☯️</div>
+                                <div class="emoji-item" data-emoji="✝️">✝️</div>
+                                <div class="emoji-item" data-emoji="☦️">☦️</div>
+                                <div class="emoji-item" data-emoji="☪️">☪️</div>
+                                <div class="emoji-item" data-emoji="☮️">☮️</div>
+                                <div class="emoji-item" data-emoji="🕎">🕎</div>
+                                <div class="emoji-item" data-emoji="🔯">🔯</div>
+                                <div class="emoji-item" data-emoji="♈">♈</div>
+                                <div class="emoji-item" data-emoji="♉">♉</div>
+                                <div class="emoji-item" data-emoji="♊">♊</div>
+                                <div class="emoji-item" data-emoji="♋">♋</div>
+                                <div class="emoji-item" data-emoji="♌">♌</div>
+                                <div class="emoji-item" data-emoji="♍">♍</div>
+                                <div class="emoji-item" data-emoji="♎">♎</div>
+                                <div class="emoji-item" data-emoji="♏">♏</div>
+                                <div class="emoji-item" data-emoji="♐">♐</div>
+                                <div class="emoji-item" data-emoji="♑">♑</div>
+                                <div class="emoji-item" data-emoji="♒">♒</div>
+                                <div class="emoji-item" data-emoji="♓">♓</div>
+                                <div class="emoji-item" data-emoji="⛎">⛎</div>
+                                <div class="emoji-item" data-emoji="♀️">♀️</div>
+                                <div class="emoji-item" data-emoji="♂️">♂️</div>
+                                <div class="emoji-item" data-emoji="⚧️">⚧️</div>
+                                <div class="emoji-item" data-emoji="🆔">🆔</div>
+                                <div class="emoji-item" data-emoji="⚕️">⚕️</div>
+                                <div class="emoji-item" data-emoji="♾️">♾️</div>
+                                <div class="emoji-item" data-emoji="♻️">♻️</div>
+                                <div class="emoji-item" data-emoji="⚜️">⚜️</div>
+                                <div class="emoji-item" data-emoji="📛">📛</div>
+                                <div class="emoji-item" data-emoji="🔰">🔰</div>
+                                <div class="emoji-item" data-emoji="⭕">⭕</div>
+                                <div class="emoji-item" data-emoji="✅">✅</div>
+                                <div class="emoji-item" data-emoji="☑️">☑️</div>
+                                <div class="emoji-item" data-emoji="✔️">✔️</div>
+                                <div class="emoji-item" data-emoji="❌">❌</div>
+                                <div class="emoji-item" data-emoji="❓">❓</div>
+                                <div class="emoji-item" data-emoji="❔">❔</div>
+                                <div class="emoji-item" data-emoji="❕">❕</div>
+                                <div class="emoji-item" data-emoji="❗">❗</div>
+                                <div class="emoji-item" data-emoji="〰️">〰️</div>
+                                <div class="emoji-item" data-emoji="💱">💱</div>
+                                <div class="emoji-item" data-emoji="💲">💲</div>
+                                <div class="emoji-item" data-emoji="⚕️">⚕️</div>
+                                <div class="emoji-item" data-emoji="🔱">🔱</div>
+                                <div class="emoji-item" data-emoji="📴">📴</div>
+                                <div class="emoji-item" data-emoji="📳">📳</div>
+                                <div class="emoji-item" data-emoji="🈶">🈶</div>
+                                <div class="emoji-item" data-emoji="🈚">🈚</div>
+                                <div class="emoji-item" data-emoji="🈸">🈸</div>
+                                <div class="emoji-item" data-emoji="🈺">🈺</div>
+                                <div class="emoji-item" data-emoji="🈷️">🈷️</div>
+                                <div class="emoji-item" data-emoji="✴️">✴️</div>
+                                <div class="emoji-item" data-emoji="🆚">🆚</div>
+                                <div class="emoji-item" data-emoji="💮">💮</div>
+                                <div class="emoji-item" data-emoji="🉑">🉑</div>
+                                <div class="emoji-item" data-emoji="㊙️">㊙️</div>
+                                <div class="emoji-item" data-emoji="㊗️">㊗️</div>
+                                <div class="emoji-item" data-emoji="🈴">🈴</div>
+                                <div class="emoji-item" data-emoji="🈵">🈵</div>
+                                <div class="emoji-item" data-emoji="🈹">🈹</div>
+                                <div class="emoji-item" data-emoji="🈲">🈲</div>
+                                <div class="emoji-item" data-emoji="🅰️">🅰️</div>
+                                <div class="emoji-item" data-emoji="🅱️">🅱️</div>
+                                <div class="emoji-item" data-emoji="🆎">🆎</div>
+                                <div class="emoji-item" data-emoji="🆑">🆑</div>
+                                <div class="emoji-item" data-emoji="🅾️">🅾️</div>
+                                <div class="emoji-item" data-emoji="🆘">🆘</div>
+                                <div class="emoji-item" data-emoji="❌">❌</div>
+                                <div class="emoji-item" data-emoji="⭕">⭕</div>
+                                <div class="emoji-item" data-emoji="🛑">🛑</div>
+                                <div class="emoji-item" data-emoji="⛔">⛔</div>
+                                <div class="emoji-item" data-emoji="📛">📛</div>
+                                <div class="emoji-item" data-emoji="🚫">🚫</div>
+                                <div class="emoji-item" data-emoji="💯">💯</div>
+                                <div class="emoji-item" data-emoji="💢">💢</div>
+                                <div class="emoji-item" data-emoji="♨️">♨️</div>
+                                <div class="emoji-item" data-emoji="🚷">🚷</div>
+                                <div class="emoji-item" data-emoji="🚯">🚯</div>
+                                <div class="emoji-item" data-emoji="🚳">🚳</div>
+                                <div class="emoji-item" data-emoji="🚱">🚱</div>
+                                <div class="emoji-item" data-emoji="🔞">🔞</div>
+                                <div class="emoji-item" data-emoji="📵">📵</div>
+                                <div class="emoji-item" data-emoji="🚭">🚭</div>
+                                <div class="emoji-item" data-emoji="❗">❗</div>
+                                <div class="emoji-item" data-emoji="❕">❕</div>
+                                <div class="emoji-item" data-emoji="❓">❓</div>
+                                <div class="emoji-item" data-emoji="❔">❔</div>
+                                <div class="emoji-item" data-emoji="‼️">‼️</div>
+                                <div class="emoji-item" data-emoji="⁉️">⁉️</div>
+                                <div class="emoji-item" data-emoji="🔅">🔅</div>
+                                <div class="emoji-item" data-emoji="🔆">🔆</div>
+                                <div class="emoji-item" data-emoji="〽️">〽️</div>
+                                <div class="emoji-item" data-emoji="⚠️">⚠️</div>
+                                <div class="emoji-item" data-emoji="🚸">🚸</div>
+                                <div class="emoji-item" data-emoji="🔱">🔱</div>
+                                <div class="emoji-item" data-emoji="⚜️">⚜️</div>
+                                <div class="emoji-item" data-emoji="🔰">🔰</div>
+                                <div class="emoji-item" data-emoji="♻️">♻️</div>
+                                <div class="emoji-item" data-emoji="✅">✅</div>
+                                <div class="emoji-item" data-emoji="🈯">🈯</div>
+                                <div class="emoji-item" data-emoji="💹">💹</div>
+                                <div class="emoji-item" data-emoji="❇️">❇️</div>
+                                <div class="emoji-item" data-emoji="✳️">✳️</div>
+                                <div class="emoji-item" data-emoji="❎">❎</div>
+                                <div class="emoji-item" data-emoji="🌐">🌐</div>
+                                <div class="emoji-item" data-emoji="💠">💠</div>
+                                <div class="emoji-item" data-emoji="Ⓜ️">Ⓜ️</div>
+                                <div class="emoji-item" data-emoji="🌀">🌀</div>
+                                <div class="emoji-item" data-emoji="💤">💤</div>
+                                <div class="emoji-item" data-emoji="🏧">🏧</div>
+                                <div class="emoji-item" data-emoji="🚾">🚾</div>
+                                <div class="emoji-item" data-emoji="♿">♿</div>
+                                <div class="emoji-item" data-emoji="🅿️">🅿️</div>
+                                <div class="emoji-item" data-emoji="🛗">🛗</div>
+                                <div class="emoji-item" data-emoji="🚹">🚹</div>
+                                <div class="emoji-item" data-emoji="🚺">🚺</div>
+                                <div class="emoji-item" data-emoji="🚼">🚼</div>
+                                <div class="emoji-item" data-emoji="⚧">⚧</div>
+                                <div class="emoji-item" data-emoji="🚻">🚻</div>
+                                <div class="emoji-item" data-emoji="🚮">🚮</div>
+                                <div class="emoji-item" data-emoji="🎦">🎦</div>
+                                <div class="emoji-item" data-emoji="📶">📶</div>
+                                <div class="emoji-item" data-emoji="🈁">🈁</div>
+                                <div class="emoji-item" data-emoji="🔣">🔣</div>
+                                <div class="emoji-item" data-emoji="ℹ️">ℹ️</div>
+                                <div class="emoji-item" data-emoji="🔤">🔤</div>
+                                <div class="emoji-item" data-emoji="🔡">🔡</div>
+                                <div class="emoji-item" data-emoji="🔠">🔠</div>
+                                <div class="emoji-item" data-emoji="🆖">🆖</div>
+                                <div class="emoji-item" data-emoji="🆗">🆗</div>
+                                <div class="emoji-item" data-emoji="🆙">🆙</div>
+                                <div class="emoji-item" data-emoji="🆒">🆒</div>
+                                <div class="emoji-item" data-emoji="🆕">🆕</div>
+                                <div class="emoji-item" data-emoji="🆓">🆓</div>
+                                <div class="emoji-item" data-emoji="0️⃣">0️⃣</div>
+                                <div class="emoji-item" data-emoji="1️⃣">1️⃣</div>
+                                <div class="emoji-item" data-emoji="2️⃣">2️⃣</div>
+                                <div class="emoji-item" data-emoji="3️⃣">3️⃣</div>
+                                <div class="emoji-item" data-emoji="4️⃣">4️⃣</div>
+                                <div class="emoji-item" data-emoji="5️⃣">5️⃣</div>
+                                <div class="emoji-item" data-emoji="6️⃣">6️⃣</div>
+                                <div class="emoji-item" data-emoji="7️⃣">7️⃣</div>
+                                <div class="emoji-item" data-emoji="8️⃣">8️⃣</div>
+                                <div class="emoji-item" data-emoji="9️⃣">9️⃣</div>
+                                <div class="emoji-item" data-emoji="🔟">🔟</div>
+                                <div class="emoji-item" data-emoji="*️⃣">*️⃣</div>
+                                <div class="emoji-item" data-emoji="#️⃣">#️⃣</div>
+                                <div class="emoji-item" data-emoji="⏏️">⏏️</div>
+                                <div class="emoji-item" data-emoji="▶️">▶️</div>
+                                <div class="emoji-item" data-emoji="⏸️">⏸️</div>
+                                <div class="emoji-item" data-emoji="⏯️">⏯️</div>
+                                <div class="emoji-item" data-emoji="⏹️">⏹️</div>
+                                <div class="emoji-item" data-emoji="⏺️">⏺️</div>
+                                <div class="emoji-item" data-emoji="⏭️">⏭️</div>
+                                <div class="emoji-item" data-emoji="⏮️">⏮️</div>
+                                <div class="emoji-item" data-emoji="⏩">⏩</div>
+                                <div class="emoji-item" data-emoji="⏪">⏪</div>
+                                <div class="emoji-item" data-emoji="⏫">⏫</div>
+                                <div class="emoji-item" data-emoji="⏬">⏬</div>
+                                <div class="emoji-item" data-emoji="◀️">◀️</div>
+                                <div class="emoji-item" data-emoji="🔼">🔼</div>
+                                <div class="emoji-item" data-emoji="🔽">🔽</div>
+                                <div class="emoji-item" data-emoji="➡️">➡️</div>
+                                <div class="emoji-item" data-emoji="⬅️">⬅️</div>
+                                <div class="emoji-item" data-emoji="⬆️">⬆️</div>
+                                <div class="emoji-item" data-emoji="⬇️">⬇️</div>
+                                <div class="emoji-item" data-emoji="↗️">↗️</div>
+                                <div class="emoji-item" data-emoji="↘️">↘️</div>
+                                <div class="emoji-item" data-emoji="↙️">↙️</div>
+                                <div class="emoji-item" data-emoji="↖️">↖️</div>
+                                <div class="emoji-item" data-emoji="↕️">↕️</div>
+                                <div class="emoji-item" data-emoji="↔️">↔️</div>
+                                <div class="emoji-item" data-emoji="↪️">↪️</div>
+                                <div class="emoji-item" data-emoji="↩️">↩️</div>
+                                <div class="emoji-item" data-emoji="⤴️">⤴️</div>
+                                <div class="emoji-item" data-emoji="⤵️">⤵️</div>
+                                <div class="emoji-item" data-emoji="🔀">🔀</div>
+                                <div class="emoji-item" data-emoji="🔁">🔁</div>
+                                <div class="emoji-item" data-emoji="🔂">🔂</div>
+                                <div class="emoji-item" data-emoji="🔄">🔄</div>
+                                <div class="emoji-item" data-emoji="🔃">🔃</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Flags -->
+                        <div id="flags-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <div class="emoji-item" data-emoji="🏁">🏁</div>
+                                <div class="emoji-item" data-emoji="🚩">🚩</div>
+                                <div class="emoji-item" data-emoji="🎌">🎌</div>
+                                <div class="emoji-item" data-emoji="🏴">🏴</div>
+                                <div class="emoji-item" data-emoji="🏳️">🏳️</div>
+                                <div class="emoji-item" data-emoji="🏳️‍🌈">🏳️‍🌈</div>
+                                <div class="emoji-item" data-emoji="🏳️‍⚧️">🏳️‍⚧️</div>
+                                <div class="emoji-item" data-emoji="🏴‍☠️">🏴‍☠️</div>
+                                <div class="emoji-item" data-emoji="🇦🇨">🇦🇨</div>
+                                <div class="emoji-item" data-emoji="🇦🇩">🇦🇩</div>
+                                <div class="emoji-item" data-emoji="🇦🇪">🇦🇪</div>
+                                <div class="emoji-item" data-emoji="🇦🇫">🇦🇫</div>
+                                <div class="emoji-item" data-emoji="🇦🇬">🇦🇬</div>
+                                <div class="emoji-item" data-emoji="🇦🇮">🇦🇮</div>
+                                <div class="emoji-item" data-emoji="🇦🇱">🇦🇱</div>
+                                <div class="emoji-item" data-emoji="🇦🇲">🇦🇲</div>
+                                <div class="emoji-item" data-emoji="🇦🇴">🇦🇴</div>
+                                <div class="emoji-item" data-emoji="🇦🇶">🇦🇶</div>
+                                <div class="emoji-item" data-emoji="🇦🇷">🇦🇷</div>
+                                <div class="emoji-item" data-emoji="🇦🇸">🇦🇸</div>
+                                <div class="emoji-item" data-emoji="🇦🇹">🇦🇹</div>
+                                <div class="emoji-item" data-emoji="🇦🇺">🇦🇺</div>
+                                <div class="emoji-item" data-emoji="🇦🇼">🇦🇼</div>
+                                <div class="emoji-item" data-emoji="🇦🇽">🇦🇽</div>
+                                <div class="emoji-item" data-emoji="🇦🇿">🇦🇿</div>
+                                <div class="emoji-item" data-emoji="🇧🇦">🇧🇦</div>
+                                <div class="emoji-item" data-emoji="🇧🇧">🇧🇧</div>
+                                <div class="emoji-item" data-emoji="🇧🇩">🇧🇩</div>
+                                <div class="emoji-item" data-emoji="🇧🇪">🇧🇪</div>
+                                <div class="emoji-item" data-emoji="🇧🇫">🇧🇫</div>
+                                <div class="emoji-item" data-emoji="🇧🇬">🇧🇬</div>
+                                <div class="emoji-item" data-emoji="🇧🇭">🇧🇭</div>
+                                <div class="emoji-item" data-emoji="🇧🇮">🇧🇮</div>
+                                <div class="emoji-item" data-emoji="🇧🇯">🇧🇯</div>
+                                <div class="emoji-item" data-emoji="🇧🇱">🇧🇱</div>
+                                <div class="emoji-item" data-emoji="🇧🇲">🇧🇲</div>
+                                <div class="emoji-item" data-emoji="🇧🇳">🇧🇳</div>
+                                <div class="emoji-item" data-emoji="🇧🇴">🇧🇴</div>
+                                <div class="emoji-item" data-emoji="🇧🇶">🇧🇶</div>
+                                <div class="emoji-item" data-emoji="🇧🇷">🇧🇷</div>
+                                <div class="emoji-item" data-emoji="🇧🇸">🇧🇸</div>
+                                <div class="emoji-item" data-emoji="🇧🇹">🇧🇹</div>
+                                <div class="emoji-item" data-emoji="🇧🇻">🇧🇻</div>
+                                <div class="emoji-item" data-emoji="🇧🇼">🇧🇼</div>
+                                <div class="emoji-item" data-emoji="🇧🇾">🇧🇾</div>
+                                <div class="emoji-item" data-emoji="🇧🇿">🇧🇿</div>
+                                <div class="emoji-item" data-emoji="🇨🇦">🇨🇦</div>
+                                <div class="emoji-item" data-emoji="🇨🇨">🇨🇨</div>
+                                <div class="emoji-item" data-emoji="🇨🇩">🇨🇩</div>
+                                <div class="emoji-item" data-emoji="🇨🇫">🇨🇫</div>
+                                <div class="emoji-item" data-emoji="🇨🇬">🇨🇬</div>
+                                <div class="emoji-item" data-emoji="🇨🇭">🇨🇭</div>
+                                <div class="emoji-item" data-emoji="🇨🇮">🇨🇮</div>
+                                <div class="emoji-item" data-emoji="🇨🇰">🇨🇰</div>
+                                <div class="emoji-item" data-emoji="🇨🇱">🇨🇱</div>
+                                <div class="emoji-item" data-emoji="🇨🇲">🇨🇲</div>
+                                <div class="emoji-item" data-emoji="🇨🇳">🇨🇳</div>
+                                <div class="emoji-item" data-emoji="🇨🇴">🇨🇴</div>
+                                <div class="emoji-item" data-emoji="🇨🇵">🇨🇵</div>
+                                <div class="emoji-item" data-emoji="🇨🇷">🇨🇷</div>
+                                <div class="emoji-item" data-emoji="🇨🇺">🇨🇺</div>
+                                <div class="emoji-item" data-emoji="🇨🇻">🇨🇻</div>
+                                <div class="emoji-item" data-emoji="🇨🇼">🇨🇼</div>
+                                <div class="emoji-item" data-emoji="🇨🇽">🇨🇽</div>
+                                <div class="emoji-item" data-emoji="🇨🇾">🇨🇾</div>
+                                <div class="emoji-item" data-emoji="🇨🇿">🇨🇿</div>
+                                <div class="emoji-item" data-emoji="🇩🇪">🇩🇪</div>
+                                <div class="emoji-item" data-emoji="🇩🇬">🇩🇬</div>
+                                <div class="emoji-item" data-emoji="🇩🇯">🇩🇯</div>
+                                <div class="emoji-item" data-emoji="🇩🇰">🇩🇰</div>
+                                <div class="emoji-item" data-emoji="🇩🇲">🇩🇲</div>
+                                <div class="emoji-item" data-emoji="🇩🇴">🇩🇴</div>
+                                <div class="emoji-item" data-emoji="🇩🇿">🇩🇿</div>
+                                <div class="emoji-item" data-emoji="🇪🇦">🇪🇦</div>
+                                <div class="emoji-item" data-emoji="🇪🇨">🇪🇨</div>
+                                <div class="emoji-item" data-emoji="🇪🇪">🇪🇪</div>
+                                <div class="emoji-item" data-emoji="🇪🇬">🇪🇬</div>
+                                <div class="emoji-item" data-emoji="🇪🇭">🇪🇭</div>
+                                <div class="emoji-item" data-emoji="🇪🇷">🇪🇷</div>
+                                <div class="emoji-item" data-emoji="🇪🇸">🇪🇸</div>
+                                <div class="emoji-item" data-emoji="🇪🇹">🇪🇹</div>
+                                <div class="emoji-item" data-emoji="🇪🇺">🇪🇺</div>
+                                <div class="emoji-item" data-emoji="🇫🇮">🇫🇮</div>
+                                <div class="emoji-item" data-emoji="🇫🇯">🇫🇯</div>
+                                <div class="emoji-item" data-emoji="🇫🇰">🇫🇰</div>
+                                <div class="emoji-item" data-emoji="🇫🇲">🇫🇲</div>
+                                <div class="emoji-item" data-emoji="🇫🇴">🇫🇴</div>
+                                <div class="emoji-item" data-emoji="🇫🇷">🇫🇷</div>
+                                <div class="emoji-item" data-emoji="🇬🇦">🇬🇦</div>
+                                <div class="emoji-item" data-emoji="🇬🇧">🇬🇧</div>
+                                <div class="emoji-item" data-emoji="🇬🇩">🇬🇩</div>
+                                <div class="emoji-item" data-emoji="🇬🇪">🇬🇪</div>
+                                <div class="emoji-item" data-emoji="🇬🇫">🇬🇫</div>
+                                <div class="emoji-item" data-emoji="🇬🇬">🇬🇬</div>
+                                <div class="emoji-item" data-emoji="🇬🇭">🇬🇭</div>
+                                <div class="emoji-item" data-emoji="🇬🇮">🇬🇮</div>
+                                <div class="emoji-item" data-emoji="🇬🇱">🇬🇱</div>
+                                <div class="emoji-item" data-emoji="🇬🇲">🇬🇲</div>
+                                <div class="emoji-item" data-emoji="🇬🇳">🇬🇳</div>
+                                <div class="emoji-item" data-emoji="🇬🇵">🇬🇵</div>
+                                <div class="emoji-item" data-emoji="🇬🇶">🇬🇶</div>
+                                <div class="emoji-item" data-emoji="🇬🇷">🇬🇷</div>
+                                <div class="emoji-item" data-emoji="🇬🇸">🇬🇸</div>
+                                <div class="emoji-item" data-emoji="🇬🇹">🇬🇹</div>
+                                <div class="emoji-item" data-emoji="🇬🇺">🇬🇺</div>
+                                <div class="emoji-item" data-emoji="🇬🇼">🇬🇼</div>
+                                <div class="emoji-item" data-emoji="🇬🇾">🇬🇾</div>
+                                <div class="emoji-item" data-emoji="🇭🇰">🇭🇰</div>
+                                <div class="emoji-item" data-emoji="🇭🇲">🇭🇲</div>
+                                <div class="emoji-item" data-emoji="🇭🇳">🇭🇳</div>
+                                <div class="emoji-item" data-emoji="🇭🇷">🇭🇷</div>
+                                <div class="emoji-item" data-emoji="🇭🇹">🇭🇹</div>
+                                <div class="emoji-item" data-emoji="🇭🇺">🇭🇺</div>
+                                <div class="emoji-item" data-emoji="🇮🇨">🇮🇨</div>
+                                <div class="emoji-item" data-emoji="🇮🇩">🇮🇩</div>
+                                <div class="emoji-item" data-emoji="🇮🇪">🇮🇪</div>
+                                <div class="emoji-item" data-emoji="🇮🇱">🇮🇱</div>
+                                <div class="emoji-item" data-emoji="🇮🇲">🇮🇲</div>
+                                <div class="emoji-item" data-emoji="🇮🇳">🇮🇳</div>
+                                <div class="emoji-item" data-emoji="🇮🇴">🇮🇴</div>
+                                <div class="emoji-item" data-emoji="🇮🇶">🇮🇶</div>
+                                <div class="emoji-item" data-emoji="🇮🇷">🇮🇷</div>
+                                <div class="emoji-item" data-emoji="🇮🇸">🇮🇸</div>
+                                <div class="emoji-item" data-emoji="🇮🇹">🇮🇹</div>
+                                <div class="emoji-item" data-emoji="🇯🇪">🇯🇪</div>
+                                <div class="emoji-item" data-emoji="🇯🇲">🇯🇲</div>
+                                <div class="emoji-item" data-emoji="🇯🇴">🇯🇴</div>
+                                <div class="emoji-item" data-emoji="🇯🇵">🇯🇵</div>
+                                <div class="emoji-item" data-emoji="🇰🇪">🇰🇪</div>
+                                <div class="emoji-item" data-emoji="🇰🇬">🇰🇬</div>
+                                <div class="emoji-item" data-emoji="🇰🇭">🇰🇭</div>
+                                <div class="emoji-item" data-emoji="🇰🇮">🇰🇮</div>
+                                <div class="emoji-item" data-emoji="🇰🇲">🇰🇲</div>
+                                <div class="emoji-item" data-emoji="🇰🇳">🇰🇳</div>
+                                <div class="emoji-item" data-emoji="🇰🇵">🇰🇵</div>
+                                <div class="emoji-item" data-emoji="🇰🇷">🇰🇷</div>
+                                <div class="emoji-item" data-emoji="🇰🇼">🇰🇼</div>
+                                <div class="emoji-item" data-emoji="🇰🇾">🇰🇾</div>
+                                <div class="emoji-item" data-emoji="🇰🇿">🇰🇿</div>
+                                <div class="emoji-item" data-emoji="🇱🇦">🇱🇦</div>
+                                <div class="emoji-item" data-emoji="🇱🇧">🇱🇧</div>
+                                <div class="emoji-item" data-emoji="🇱🇨">🇱🇨</div>
+                                <div class="emoji-item" data-emoji="🇱🇮">🇱🇮</div>
+                                <div class="emoji-item" data-emoji="🇱🇰">🇱🇰</div>
+                                <div class="emoji-item" data-emoji="🇱🇷">🇱🇷</div>
+                                <div class="emoji-item" data-emoji="🇱🇸">🇱🇸</div>
+                                <div class="emoji-item" data-emoji="🇱🇹">🇱🇹</div>
+                                <div class="emoji-item" data-emoji="🇱🇺">🇱🇺</div>
+                                <div class="emoji-item" data-emoji="🇱🇻">🇱🇻</div>
+                                <div class="emoji-item" data-emoji="🇱🇾">🇱🇾</div>
+                                <div class="emoji-item" data-emoji="🇲🇦">🇲🇦</div>
+                                <div class="emoji-item" data-emoji="🇲🇨">🇲🇨</div>
+                                <div class="emoji-item" data-emoji="🇲🇩">🇲🇩</div>
+                                <div class="emoji-item" data-emoji="🇲🇪">🇲🇪</div>
+                                <div class="emoji-item" data-emoji="🇲🇫">🇲🇫</div>
+                                <div class="emoji-item" data-emoji="🇲🇬">🇲🇬</div>
+                                <div class="emoji-item" data-emoji="🇲🇭">🇲🇭</div>
+                                <div class="emoji-item" data-emoji="🇲🇰">🇲🇰</div>
+                                <div class="emoji-item" data-emoji="🇲🇱">🇲🇱</div>
+                                <div class="emoji-item" data-emoji="🇲🇲">🇲🇲</div>
+                                <div class="emoji-item" data-emoji="🇲🇳">🇲🇳</div>
+                                <div class="emoji-item" data-emoji="🇲🇴">🇲🇴</div>
+                                <div class="emoji-item" data-emoji="🇲🇵">🇲🇵</div>
+                                <div class="emoji-item" data-emoji="🇲🇶">🇲🇶</div>
+                                <div class="emoji-item" data-emoji="🇲🇷">🇲🇷</div>
+                                <div class="emoji-item" data-emoji="🇲🇸">🇲🇸</div>
+                                <div class="emoji-item" data-emoji="🇲🇹">🇲🇹</div>
+                                <div class="emoji-item" data-emoji="🇲🇺">🇲🇺</div>
+                                <div class="emoji-item" data-emoji="🇲🇻">🇲🇻</div>
+                                <div class="emoji-item" data-emoji="🇲🇼">🇲🇼</div>
+                                <div class="emoji-item" data-emoji="🇲🇽">🇲🇽</div>
+                                <div class="emoji-item" data-emoji="🇲🇾">🇲🇾</div>
+                                <div class="emoji-item" data-emoji="🇲🇿">🇲🇿</div>
+                                <div class="emoji-item" data-emoji="🇳🇦">🇳🇦</div>
+                                <div class="emoji-item" data-emoji="🇳🇨">🇳🇨</div>
+                                <div class="emoji-item" data-emoji="🇳🇪">🇳🇪</div>
+                                <div class="emoji-item" data-emoji="🇳🇫">🇳🇫</div>
+                                <div class="emoji-item" data-emoji="🇳🇬">🇳🇬</div>
+                                <div class="emoji-item" data-emoji="🇳🇮">🇳🇮</div>
+                                <div class="emoji-item" data-emoji="🇳🇱">🇳🇱</div>
+                                <div class="emoji-item" data-emoji="🇳🇴">🇳🇴</div>
+                                <div class="emoji-item" data-emoji="🇳🇵">🇳🇵</div>
+                                <div class="emoji-item" data-emoji="🇳🇷">🇳🇷</div>
+                                <div class="emoji-item" data-emoji="🇳🇺">🇳🇺</div>
+                                <div class="emoji-item" data-emoji="🇳🇿">🇳🇿</div>
+                                <div class="emoji-item" data-emoji="🇴🇲">🇴🇲</div>
+                                <div class="emoji-item" data-emoji="🇵🇦">🇵🇦</div>
+                                <div class="emoji-item" data-emoji="🇵🇪">🇵🇪</div>
+                                <div class="emoji-item" data-emoji="🇵🇫">🇵🇫</div>
+                                <div class="emoji-item" data-emoji="🇵🇬">🇵🇬</div>
+                                <div class="emoji-item" data-emoji="🇵🇭">🇵🇭</div>
+                                <div class="emoji-item" data-emoji="🇵🇰">🇵🇰</div>
+                                <div class="emoji-item" data-emoji="🇵🇱">🇵🇱</div>
+                                <div class="emoji-item" data-emoji="🇵🇲">🇵🇲</div>
+                                <div class="emoji-item" data-emoji="🇵🇳">🇵🇳</div>
+                                <div class="emoji-item" data-emoji="🇵🇷">🇵🇷</div>
+                                <div class="emoji-item" data-emoji="🇵🇸">🇵🇸</div>
+                                <div class="emoji-item" data-emoji="🇵🇹">🇵🇹</div>
+                                <div class="emoji-item" data-emoji="🇵🇼">🇵🇼</div>
+                                <div class="emoji-item" data-emoji="🇵🇾">🇵🇾</div>
+                                <div class="emoji-item" data-emoji="🇶🇦">🇶🇦</div>
+                                <div class="emoji-item" data-emoji="🇷🇪">🇷🇪</div>
+                                <div class="emoji-item" data-emoji="🇷🇴">🇷🇴</div>
+                                <div class="emoji-item" data-emoji="🇷🇸">🇷🇸</div>
+                                <div class="emoji-item" data-emoji="🇷🇺">🇷🇺</div>
+                                <div class="emoji-item" data-emoji="🇷🇼">🇷🇼</div>
+                                <div class="emoji-item" data-emoji="🇸🇦">🇸🇦</div>
+                                <div class="emoji-item" data-emoji="🇸🇧">🇸🇧</div>
+                                <div class="emoji-item" data-emoji="🇸🇨">🇸🇨</div>
+                                <div class="emoji-item" data-emoji="🇸🇩">🇸🇩</div>
+                                <div class="emoji-item" data-emoji="🇸🇪">🇸🇪</div>
+                                <div class="emoji-item" data-emoji="🇸🇬">🇸🇬</div>
+                                <div class="emoji-item" data-emoji="🇸🇭">🇸🇭</div>
+                                <div class="emoji-item" data-emoji="🇸🇮">🇸🇮</div>
+                                <div class="emoji-item" data-emoji="🇸🇯">🇸🇯</div>
+                                <div class="emoji-item" data-emoji="🇸🇰">🇸🇰</div>
+                                <div class="emoji-item" data-emoji="🇸🇱">🇸🇱</div>
+                                <div class="emoji-item" data-emoji="🇸🇲">🇸🇲</div>
+                                <div class="emoji-item" data-emoji="🇸🇳">🇸🇳</div>
+                                <div class="emoji-item" data-emoji="🇸🇴">🇸🇴</div>
+                                <div class="emoji-item" data-emoji="🇸🇷">🇸🇷</div>
+                                <div class="emoji-item" data-emoji="🇸🇸">🇸🇸</div>
+                                <div class="emoji-item" data-emoji="🇸🇹">🇸🇹</div>
+                                <div class="emoji-item" data-emoji="🇸🇻">🇸🇻</div>
+                                <div class="emoji-item" data-emoji="🇸🇽">🇸🇽</div>
+                                <div class="emoji-item" data-emoji="🇸🇾">🇸🇾</div>
+                                <div class="emoji-item" data-emoji="🇸🇿">🇸🇿</div>
+                                <div class="emoji-item" data-emoji="🇹🇦">🇹🇦</div>
+                                <div class="emoji-item" data-emoji="🇹🇨">🇹🇨</div>
+                                <div class="emoji-item" data-emoji="🇹🇩">🇹🇩</div>
+                                <div class="emoji-item" data-emoji="🇹🇫">🇹🇫</div>
+                                <div class="emoji-item" data-emoji="🇹🇬">🇹🇬</div>
+                                <div class="emoji-item" data-emoji="🇹🇭">🇹🇭</div>
+                                <div class="emoji-item" data-emoji="🇹🇯">🇹🇯</div>
+                                <div class="emoji-item" data-emoji="🇹🇰">🇹🇰</div>
+                                <div class="emoji-item" data-emoji="🇹🇱">🇹🇱</div>
+                                <div class="emoji-item" data-emoji="🇹🇲">🇹🇲</div>
+                                <div class="emoji-item" data-emoji="🇹🇳">🇹🇳</div>
+                                <div class="emoji-item" data-emoji="🇹🇴">🇹🇴</div>
+                                <div class="emoji-item" data-emoji="🇹🇷">🇹🇷</div>
+                                <div class="emoji-item" data-emoji="🇹🇹">🇹🇹</div>
+                                <div class="emoji-item" data-emoji="🇹🇻">🇹🇻</div>
+                                <div class="emoji-item" data-emoji="🇹🇼">🇹🇼</div>
+                                <div class="emoji-item" data-emoji="🇹🇿">🇹🇿</div>
+                                <div class="emoji-item" data-emoji="🇺🇦">🇺🇦</div>
+                                <div class="emoji-item" data-emoji="🇺🇬">🇺🇬</div>
+                                <div class="emoji-item" data-emoji="🇺🇲">🇺🇲</div>
+                                <div class="emoji-item" data-emoji="🇺🇳">🇺🇳</div>
+                                <div class="emoji-item" data-emoji="🇺🇸">🇺🇸</div>
+                                <div class="emoji-item" data-emoji="🇺🇾">🇺🇾</div>
+                                <div class="emoji-item" data-emoji="🇺🇿">🇺🇿</div>
+                                <div class="emoji-item" data-emoji="🇻🇦">🇻🇦</div>
+                                <div class="emoji-item" data-emoji="🇻🇨">🇻🇨</div>
+                                <div class="emoji-item" data-emoji="🇻🇪">🇻🇪</div>
+                                <div class="emoji-item" data-emoji="🇻🇬">🇻🇬</div>
+                                <div class="emoji-item" data-emoji="🇻🇮">🇻🇮</div>
+                                <div class="emoji-item" data-emoji="🇻🇳">🇻🇳</div>
+                                <div class="emoji-item" data-emoji="🇻🇺">🇻🇺</div>
+                                <div class="emoji-item" data-emoji="🇼🇫">🇼🇫</div>
+                                <div class="emoji-item" data-emoji="🇼🇸">🇼🇸</div>
+                                <div class="emoji-item" data-emoji="🇽🇰">🇽🇰</div>
+                                <div class="emoji-item" data-emoji="🇾🇪">🇾🇪</div>
+                                <div class="emoji-item" data-emoji="🇾🇹">🇾🇹</div>
+                                <div class="emoji-item" data-emoji="🇿🇦">🇿🇦</div>
+                                <div class="emoji-item" data-emoji="🇿🇲">🇿🇲</div>
+                                <div class="emoji-item" data-emoji="🇿🇼">🇿🇼</div>
+                            </div>
+                        </div>
+                        
+                        <!-- New Emoji iOS 18.4 -->
+                        <div id="new-container" class="emoji-category hidden">
+                            <div class="emoji-grid">
+                                <div class="emoji-item" data-emoji="🫨">🫨</div>
+                                <div class="emoji-item" data-emoji="🫸">🫸</div>
+                                <div class="emoji-item" data-emoji="🫷">🫷</div>
+                                <div class="emoji-item" data-emoji="🪿">🪿</div>
+                                <div class="emoji-item" data-emoji="🫎">🫎</div>
+                                <div class="emoji-item" data-emoji="🪼">🪼</div>
+                                <div class="emoji-item" data-emoji="🫏">🫏</div>
+                                <div class="emoji-item" data-emoji="🪽">🪽</div>
+                                <div class="emoji-item" data-emoji="🪻">🪻</div>
+                                <div class="emoji-item" data-emoji="🫛">🫛</div>
+                                <div class="emoji-item" data-emoji="🫚">🫚</div>
+                                <div class="emoji-item" data-emoji="🪭">🪭</div>
+                                <div class="emoji-item" data-emoji="🪮">🪮</div>
+                                <div class="emoji-item" data-emoji="🪇">🪇</div>
+                                <div class="emoji-item" data-emoji="🫙">🫙</div>
+                                <div class="emoji-item" data-emoji="🛜">🛜</div>
+                                <div class="emoji-item" data-emoji="🩷">🩷</div>
+                                <div class="emoji-item" data-emoji="🩵">🩵</div>
+                                <div class="emoji-item" data-emoji="🩶">🩶</div>
+                                <div class="emoji-item" data-emoji="🪈">🪈</div>
+                                <div class="emoji-item" data-emoji="🫧">🫧</div>
+                                <div class="emoji-item" data-emoji="🫥">🫥</div>
+                                <div class="emoji-item" data-emoji="🫤">🫤</div>
+                                <div class="emoji-item" data-emoji="🥹">🥹</div>
+                                <div class="emoji-item" data-emoji="🫠">🫠</div>
+                                <div class="emoji-item" data-emoji="🫣">🫣</div>
+                                <div class="emoji-item" data-emoji="🫢">🫢</div>
+                                <div class="emoji-item" data-emoji="🫡">🫡</div>
+                                <div class="emoji-item" data-emoji="🫱">🫱</div>
+                                <div class="emoji-item" data-emoji="🫲">🫲</div>
+                                <div class="emoji-item" data-emoji="🫳">🫳</div>
+                                <div class="emoji-item" data-emoji="🫴">🫴</div>
+                                <div class="emoji-item" data-emoji="🫵">🫵</div>
+                                <div class="emoji-item" data-emoji="🫶">🫶</div>
+                                <div class="emoji-item" data-emoji="🧌">🧌</div>
+                                <div class="emoji-item" data-emoji="🪸">🪸</div>
+                                <div class="emoji-item" data-emoji="🪹">🪹</div>
+                                <div class="emoji-item" data-emoji="🪺">🪺</div>
+                                <div class="emoji-item" data-emoji="🪷">🪷</div>
+                                <div class="emoji-item" data-emoji="🪰">🪰</div>
+                                <div class="emoji-item" data-emoji="🪱">🪱</div>
+                                <div class="emoji-item" data-emoji="🪲">🪲</div>
+                                <div class="emoji-item" data-emoji="🪳">🪳</div>
+                                <div class="emoji-item" data-emoji="🫗">🫗</div>
+                                <div class="emoji-item" data-emoji="🫘">🫘</div>
+                                <div class="emoji-item" data-emoji="🫑">🫑</div>
+                                <div class="emoji-item" data-emoji="🫒">🫒</div>
+                                <div class="emoji-item" data-emoji="🫓">🫓</div>
+                                <div class="emoji-item" data-emoji="🫔">🫔</div>
+                                <div class="emoji-item" data-emoji="🫕">🫕</div>
+                                <div class="emoji-item" data-emoji="🧋">🧋</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Info Section -->
+                    <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                        <h3 class="font-medium text-lg mb-2 text-blue-700">Cara Kerja Konverter Apple Emoji</h3>
+                        <ul class="space-y-2 text-sm text-blue-700">
+                            <li class="flex items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Alat ini mengkonversi emoji dari perangkat apapun (Android, Windows, dsb) ke tampilan emoji Apple.
+                            </li>
+                            <li class="flex items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Ketik, salin atau tempel emoji apa saja ke dalam kotak input, lalu klik "Konversi".
+                            </li>
+                            <li class="flex items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Anda akan melihat perbandingan emoji asli dari perangkat Anda dengan tampilan Apple.
+                            </li>
+                            <li class="flex items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Pilih ukuran gambar yang Anda inginkan (128px sampai 1024px) dan unduh dalam format PNG.
+                            </li>
+                            <li class="flex items-start">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Semua emoji diproses secara lokal di perangkat Anda - tidak ada data yang dikirim ke server.
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+            </div>
+        </main>
+        <footer class="mt-12 py-6 text-center text-sm text-gray-600">
+            <p>Semua proses konversi dilakukan secara lokal di perangkat Anda - tidak ada data yang dikirim ke server.</p>
+        </footer>
+    </div>
+    <script>
+        // =============== TABS NAVIGATION ===============
+        const memojiTab = document.getElementById('memoji-tab');
+        const emojiTab = document.getElementById('emoji-tab');
+        const memojiSection = document.getElementById('memoji-section');
+        const emojiSection = document.getElementById('emoji-section');
+        
+        // Dark mode support
+        function applyDarkModeIfNeeded() {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.body.classList.add('dark-mode');
+            }
+        }
+        
+        applyDarkModeIfNeeded();
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        });
+
+        memojiTab.addEventListener('click', () => {
+            memojiTab.classList.add('active');
+            emojiTab.classList.remove('active');
+            memojiSection.classList.remove('hidden');
+            emojiSection.classList.add('hidden');
+        });
+
+        emojiTab.addEventListener('click', () => {
+            emojiTab.classList.add('active');
+            memojiTab.classList.remove('active');
+            emojiSection.classList.remove('hidden');
+            memojiSection.classList.add('hidden');
+        });
+
+        // =============== MEMOJI CONVERTER CODE ===============
+        // Elemen DOM
+        const pasteArea = document.getElementById('paste-area');
+        const placeholder = document.getElementById('placeholder');
+        const memojiPreview = document.getElementById('memoji-preview');
+        const previewContainer = document.getElementById('preview-container');
+        const convertBtn = document.getElementById('convert-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const resultSection = document.getElementById('result-section');
+        const resultImage = document.getElementById('result-image');
+        const loadingSection = document.getElementById('loading-section');
+        const convertNew = document.getElementById('convert-new');
+        const downloadBtn = document.getElementById('download-btn');
+
+        let memojiImage = null;
+
+        // Event listeners untuk area paste
+        pasteArea.addEventListener('click', () => {
+            pasteArea.focus();
+        });
+
+        pasteArea.addEventListener('paste', (e) => {
+            e.preventDefault();
+            
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            let hasImage = false;
+            
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    hasImage = true;
+                    const blob = item.getAsFile();
+                    handleImageBlob(blob);
+                    break;
+                }
+            }
+            
+            if (!hasImage) {
+                // Coba cek apakah ada src data URL di clipboard (untuk iOS Memoji)
+                const text = (e.clipboardData || e.originalEvent.clipboardData).getData('text/html');
+                const imgMatch = text.match(/<img[^>]+src="([^"]+)"/i);
+                
+                if (imgMatch && imgMatch[1]) {
+                    const imgSrc = imgMatch[1];
+                    handleImageSrc(imgSrc);
+                } else {
+                    alert('Tidak ada gambar di clipboard. Pastikan Anda menyalin Memoji dari keyboard iOS.');
+                }
+            }
+        });
+
+        // Event listener untuk drag and drop
+        pasteArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            pasteArea.classList.add('border-primary', 'bg-gray-200');
+        });
+
+        pasteArea.addEventListener('dragleave', () => {
+            pasteArea.classList.remove('border-primary', 'bg-gray-200');
+        });
+
+        pasteArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            pasteArea.classList.remove('border-primary', 'bg-gray-200');
+            
+            // Cek apakah ada gambar yang di-drop
+            const items = e.dataTransfer.items;
+            let hasImage = false;
+            
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    hasImage = true;
+                    const blob = item.getAsFile();
+                    handleImageBlob(blob);
+                    break;
+                }
+            }
+            
+            if (!hasImage && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.indexOf('image') !== -1) {
+                    handleImageBlob(file);
+                } else {
+                    alert('File yang diunggah bukan gambar. Silakan coba lagi dengan gambar Memoji.');
+                }
+            }
+        });
+
+        // Button event listeners
+        clearBtn.addEventListener('click', resetAll);
+        
+        convertBtn.addEventListener('click', convertToHDPNG);
+        
+        convertNew.addEventListener('click', () => {
+            resultSection.classList.add('hidden');
+            resetAll();
+            document.getElementById('paste-section').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // Fungsi-fungsi
+        function handleImageBlob(blob) {
+            memojiImage = blob;
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'max-w-full max-h-full object-contain';
+                
+                // Tampilkan preview
+                placeholder.style.display = 'none';
+                previewContainer.innerHTML = '';
+                previewContainer.appendChild(img);
+                memojiPreview.classList.remove('hidden');
+            };
+            
+            reader.readAsDataURL(blob);
+        }
+
+        function handleImageSrc(src) {
+            // Buat gambar dari src
+            const img = new Image();
+            img.onload = () => {
+                // Ubah ke Blob untuk proses selanjutnya
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob((blob) => {
+                    memojiImage = blob;
+                    
+                    // Tampilkan preview
+                    placeholder.style.display = 'none';
+                    
+                    const previewImg = document.createElement('img');
+                    previewImg.src = src;
+                    previewImg.className = 'max-w-full max-h-full object-contain';
+                    
+                    previewContainer.innerHTML = '';
+                    previewContainer.appendChild(previewImg);
+                    memojiPreview.classList.remove('hidden');
+                });
+            };
+            
+            img.onerror = () => {
+                alert('Gagal memuat gambar. Pastikan Anda menyalin Memoji yang valid.');
+            };
+            
+            img.src = src;
+        }
+
+        function resetAll() {
+            memojiImage = null;
+            placeholder.style.display = 'block';
+            memojiPreview.classList.add('hidden');
+            previewContainer.innerHTML = '';
+            pasteArea.innerHTML = '';
+            pasteArea.appendChild(placeholder);
+        }
+
+        function convertToHDPNG() {
+            if (!memojiImage) {
+                alert('Tidak ada Memoji yang dipilih. Silakan tempel Memoji terlebih dahulu.');
+                return;
+            }
+            
+            // Tampilkan loading
+            loadingSection.classList.remove('hidden');
+            
+            // Buat URL objek untuk gambar
+            const imageUrl = URL.createObjectURL(memojiImage);
+            
+            setTimeout(() => {
+                processImage(imageUrl);
+            }, 1000); // Delay kecil untuk animasi loading
+        }
+
+        function processImage(imageUrl) {
+            const img = new Image();
+            img.onload = () => {
+                // Buat canvas dengan dimensi 2x ukuran asli untuk HD
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width * 2;
+                canvas.height = img.height * 2;
+                
+                const ctx = canvas.getContext('2d');
+                // Gunakan rendering gambar kualitas tinggi
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Background transparan
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Gambar Memoji yang diperbesar
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Konversi ke PNG
+                const pngDataUrl = canvas.toDataURL('image/png');
+                
+                // Bersihkan URL objek
+                URL.revokeObjectURL(imageUrl);
+                
+                // Tampilkan hasilnya
+                displayResult(pngDataUrl);
+            };
+            
+            img.onerror = () => {
+                loadingSection.classList.add('hidden');
+                alert('Error memproses Memoji. Silakan coba lagi.');
+                URL.revokeObjectURL(imageUrl);
+            };
+            
+            img.src = imageUrl;
+        }
+
+        function displayResult(pngDataUrl) {
+            // Sembunyikan loading
+            loadingSection.classList.add('hidden');
+            
+            // Tampilkan hasil
+            resultImage.src = pngDataUrl;
+            
+            // Setup tombol unduh
+            downloadBtn.href = pngDataUrl;
+            downloadBtn.download = "memoji-hd-" + new Date().getTime() + ".png";
+            
+            // Tampilkan section hasil
+            resultSection.classList.remove('hidden');
+            
+            // Scroll ke hasil
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // =============== APPLE EMOJI CONVERTER CODE ===============
+        // Initialize Twemoji to convert all emojis to Twitter (Apple-style) emoji images
+        window.onload = function() {
+            // Initialize Twemoji for all emoji items
+            twemoji.parse(document.querySelectorAll('.apple-emoji'), {
+                folder: 'svg',
+                ext: '.svg',
+                className: 'emoji',
+                // Use the highest quality version
+                size: '72x72'
+            });
+            
+            // Hide loading after initial render
+            document.getElementById('loading-container').style.display = 'none';
+            
+            // Set default emoji in preview
+            setSelectedEmoji('👋');
+            
+            // Apply dark mode if needed (check again after full load)
+            applyDarkModeIfNeeded();
+            
+            // Set up category navigation
+            setupCategoryNavigation();
+        };
+        
+        // DOM Elements for Emoji Tab
+        const emojiInput = document.getElementById('emoji-input');
+        const convertEmojiBtn = document.getElementById('convert-emoji-btn');
+        const originalEmojiDisplay = document.getElementById('original-emoji');
+        const appleEmojiPreview = document.getElementById('apple-emoji-preview');
+        const emojiDownloadBtn = document.getElementById('emoji-download-btn');
+        const emojiItems = document.querySelectorAll('.emoji-item');
+        const sizeOptions = document.querySelectorAll('.size-option');
+        const sizeDisplay = document.getElementById('size-display');
+        const loadingContainer = document.getElementById('loading-container');
+        const categoryButtons = document.querySelectorAll('.category-btn');
+
+        // Variables
+        let currentEmojiSize = 512; // Default size
+
+        // Category navigation
+        function setupCategoryNavigation() {
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons
+                    categoryButtons.forEach(btn => btn.classList.remove('active'));
+                    
+                    // Add active class to clicked button
+                    button.classList.add('active');
+                    
+                    // Get category ID
+                    const categoryId = button.dataset.category;
+                    
+                    // Hide all categories
+                    document.querySelectorAll('.emoji-category').forEach(cat => {
+                        cat.classList.add('hidden');
+                    });
+                    
+                    // Show selected category
+                    document.getElementById(`${categoryId}-container`).classList.remove('hidden');
+                });
+            });
+        }
+
+        // Event Listeners for Emoji Converter
+        // Emoji selection from grid
+        emojiItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const emoji = item.dataset.emoji;
+                emojiInput.value = emoji;
+                setSelectedEmoji(emoji);
+            });
+        });
+
+        // Size selection
+        sizeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                sizeOptions.forEach(opt => {
+                    opt.classList.remove('bg-apple', 'text-white');
+                    opt.classList.add('border', 'border-gray-300', 'hover:bg-gray-100');
+                });
+                
+                option.classList.add('bg-apple', 'text-white');
+                option.classList.remove('border', 'border-gray-300', 'hover:bg-gray-100');
+                
+                currentEmojiSize = parseInt(option.dataset.size);
+                sizeDisplay.textContent = currentEmojiSize;
+                
+                // Update download settings if an emoji is already selected
+                if (emojiInput.value) {
+                    updateEmojiDownload(emojiInput.value);
+                }
+            });
+        });
+
+        // Convert emoji button
+        convertEmojiBtn.addEventListener('click', () => {
+            const inputText = emojiInput.value.trim();
+            if (inputText && /\p{Emoji}/u.test(inputText)) {
+                // Get the first emoji character if multiple are entered
+                const match = inputText.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/u);
+                if (match) {
+                    setSelectedEmoji(match[0]);
+                }
+            } else {
+                alert('Silakan masukkan minimal satu emoji yang valid');
+            }
+        });
+
+        // Also process emoji when input changes
+        emojiInput.addEventListener('input', () => {
+            const inputText = emojiInput.value.trim();
+            if (inputText && /\p{Emoji}/u.test(inputText)) {
+                const match = inputText.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/u);
+                if (match) {
+                    // Show the emoji in original display
+                    originalEmojiDisplay.textContent = match[0];
+                }
+            }
+        });
+
+        // Set selected emoji and show Apple version
+        function setSelectedEmoji(emoji) {
+            // Show loading
+            loadingContainer.style.display = 'block';
+            
+            // Set original emoji
+            originalEmojiDisplay.textContent = emoji;
+            
+            // Clear previous Apple emoji
+            appleEmojiPreview.innerHTML = '';
+            
+            // Add the emoji to be parsed
+            appleEmojiPreview.textContent = emoji;
+            
+            // Parse with Twemoji to show Apple-style emoji
+            twemoji.parse(appleEmojiPreview, {
+                folder: 'svg',
+                ext: '.svg',
+                className: 'emoji',
+                // Use the highest quality version available
+                size: '72x72'
+            });
+            
+            // Update download button
+            updateEmojiDownload(emoji);
+            
+            // Hide loading
+            loadingContainer.style.display = 'none';
+        }
+
+        // Update emoji download settings
+        function updateEmojiDownload(emoji) {
+            // Get the img element created by Twemoji
+            const emojiImg = appleEmojiPreview.querySelector('img');
+
+            if (emojiImg) {
+                // Get the Twemoji URL
+                const twemojiUrl = emojiImg.src;
+
+                // Create a canvas at the selected size
+                const canvas = document.createElement('canvas');
+                canvas.width = currentEmojiSize;
+                canvas.height = currentEmojiSize;
+                const ctx = canvas.getContext('2d');
+
+                // Load the Twemoji image
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+
+                img.onload = function() {
+                    // Clear canvas with transparent background
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // Draw emoji image centered
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                    // Create data URL
+                    try {
+                        const pngDataUrl = canvas.toDataURL('image/png');
+
+                        // Update download button
+                        emojiDownloadBtn.href = pngDataUrl;
+
+                        // Create a descriptive filename
+                        let filename = "apple-emoji";
+
+                        // Add emoji code point to filename for uniqueness
+                        try {
+                            const codePoint = emoji.codePointAt(0).toString(16);
+                            filename += "-" + codePoint;
+                        } catch (e) {
+                            // Fallback if code point can't be determined
+                            filename += "-" + Date.now();
+                        }
+
+                        // Add size to filename
+                        filename += "-" + currentEmojiSize + "px.png";
+                        emojiDownloadBtn.download = filename;
+                        
+                        // Menambahkan informasi cara mengunduh alternatif untuk mobile
+                        const downloadInfo = document.getElementById('emoji-download-info');
+                        if (downloadInfo) {
+                            downloadInfo.classList.remove('hidden');
+                        }
+                    } catch(e) {
+                        console.error("Error generating PNG:", e);
+                    }
+                };
+
+                img.onerror = function() {
+                    console.error("Error loading emoji image");
+                };
+
+                // Load the image from Twemoji URL
+                img.src = twemojiUrl;
+            }
+        }
+    </script>
+</body>
+</html>
